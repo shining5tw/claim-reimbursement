@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>費用報銷彙整表 v2.8.0</title>
+  <title>費用報銷彙整表 v2.9.0</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React 18 & ReactDOM 18 CDN -->
@@ -47,7 +47,7 @@
 
     const TARGET_COMPANY = "茂生食品股份有限公司";
     const TARGET_TAX_ID = "85099593";
-    const VERSION = "v2.8.0";
+    const VERSION = "v2.9.0";
     const SUBSIDY_RATE = 6; // 每公里自駕補貼費率 (NTD)
 
     // --- 憑證形式 ---
@@ -233,6 +233,7 @@
       const [showAlertModal, setShowAlertModal] = useState(false);
       const [showExportModal, setShowExportModal] = useState(false);
       const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+      const [showClearConfirmModal, setShowClearConfirmModal] = useState(false); // 新增：清除確認視窗狀態
       const [alertMessage, setAlertMessage] = useState("");
       
       // --- 影像上傳與檔案選擇相關 ---
@@ -883,6 +884,12 @@
         e.target.value = "";
       };
 
+      const confirmClearRecords = () => {
+        setRecords([]);
+        setShowClearConfirmModal(false);
+        triggerAlert("✅ 歷史憑證明細已一鍵清除完畢。");
+      };
+
       const triggerAlert = (msg) => {
         setAlertMessage(msg);
         setShowAlertModal(true);
@@ -891,7 +898,7 @@
       const isTicketRelated = currentRecord.form.includes("車票") || currentRecord.form === "計程車乘車證明";
 
       return (
-        <div class="max-w-4xl mx-auto p-4 md:p-6 pb-24">
+        <div class="w-full max-w-7xl mx-auto p-4 md:p-6 pb-24">
           
           <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 bg-slate-900 text-white p-5 rounded-2xl shadow-lg">
             <div>
@@ -924,36 +931,7 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
-              <span class="text-slate-500 text-sm font-medium">申報總累計金額</span>
-              <div class="flex items-baseline space-x-2 mt-2">
-                <span class="text-3xl font-extrabold text-indigo-600">NT$ {totalAmount.toLocaleString()}</span>
-                <span class="text-slate-400 text-xs">元</span>
-              </div>
-              <div class="mt-3 text-xs text-slate-400 border-t pt-2">總計筆數: {records.length} 筆</div>
-            </div>
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 md:col-span-2">
-              <div class="flex justify-between items-center mb-3">
-                <span class="text-slate-500 text-sm font-medium">科目核銷統計</span>
-                <span class="text-xs text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded font-mono">核銷分佈分析</span>
-              </div>
-              {Object.keys(categorySummary).length === 0 ? (
-                <div class="text-slate-400 text-sm py-4 text-center">暫無申報數據，請新增憑證。</div>
-              ) : (
-                <div class="grid grid-cols-2 gap-x-4 gap-y-2 font-mono text-xs">
-                  {Object.entries(categorySummary).map(([cat, val]) => (
-                    <div key={cat} class="flex items-center justify-between py-1 border-b border-dashed border-slate-100">
-                      <span class="text-slate-600 truncate max-w-[120px]">{cat}</span>
-                      <span class="font-bold text-slate-900">NT$ {val.toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div class="flex flex-col sm:flex-row gap-3 mb-6">
+          <div class="flex flex-col sm:flex-row flex-wrap gap-3 mb-6">
             <button 
               onClick={() => {
                 if (!employeeName.trim() || !employeeDept.trim()) {
@@ -978,6 +956,18 @@
               class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2"
             >
               <IconDownload /><span>彙整匯出 CSV 報表</span>
+            </button>
+            <button 
+              onClick={() => {
+                if (records.length === 0) {
+                  triggerAlert("目前沒有憑證明細可以清除。");
+                  return;
+                }
+                setShowClearConfirmModal(true);
+              }}
+              class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold py-3 px-5 rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2 border border-rose-200"
+            >
+              <IconTrash /><span>清除憑證明細</span>
             </button>
           </div>
 
@@ -1382,6 +1372,27 @@
                 <h3 class="text-lg font-bold text-rose-600 mb-2">系統提示</h3>
                 <div class="text-sm text-slate-600 text-left bg-rose-50 p-4 rounded-xl mb-5 whitespace-pre-wrap">{alertMessage}</div>
                 <button onClick={() => setShowAlertModal(false)} class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl">確認</button>
+              </div>
+            </div>
+          )}
+
+          {/* --- 視窗 6：清除所有明細確認框 --- */}
+          {showClearConfirmModal && (
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl text-center animate-in fade-in zoom-in-95 duration-200">
+                <div class="flex justify-center mb-4"><span class="text-5xl">🗑️</span></div>
+                <h3 class="text-xl font-bold text-rose-600 mb-2">確認清除所有明細？</h3>
+                <div class="text-sm text-slate-600 text-left bg-rose-50 p-4 rounded-xl mb-6">
+                  您即將清除目前列表中的「所有憑證明細資料」。<br/><br/><strong>⚠️ 警告：</strong> 此操作無法復原，清除後將無法找回尚未匯出的資料。請確認是否繼續？
+                </div>
+                <div class="space-y-3">
+                  <button onClick={confirmClearRecords} class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-xl shadow transition-colors">
+                    是的，確認清除
+                  </button>
+                  <button onClick={() => setShowClearConfirmModal(false)} class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 px-4 rounded-xl transition-colors">
+                    取消，保留資料
+                  </button>
+                </div>
               </div>
             </div>
           )}
