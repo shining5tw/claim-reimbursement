@@ -842,10 +842,38 @@
             }
 
             if (importedRecords.length > 0) {
-              setRecords(prev => [...importedRecords, ...prev]);
-              if (importedRecords[0].employeeName) setEmployeeName(importedRecords[0].employeeName);
-              if (importedRecords[0].employeeDept) setEmployeeDept(importedRecords[0].employeeDept);
-              triggerAlert(`成功智慧解析並匯入 ${importedRecords.length} 筆報銷明細！`);
+              // 匯入防呆：比對本機現有明細，自動剔除重複項目
+              const existingKeys = new Set(records.map(r => `${r.date}_${r.amount}_${r.category}_${r.taxId}`));
+              const newRecords = [];
+              let duplicateCount = 0;
+
+              importedRecords.forEach(r => {
+                const key = `${r.date}_${r.amount}_${r.category}_${r.taxId}`;
+                if (existingKeys.has(key)) {
+                  duplicateCount++;
+                } else {
+                  existingKeys.add(key); // 將新項目加入 Set，同時防止匯入檔案本身內部的重複
+                  newRecords.push(r);
+                }
+              });
+
+              if (newRecords.length > 0) {
+                setRecords(prev => [...newRecords, ...prev]);
+                if (newRecords[0].employeeName) setEmployeeName(newRecords[0].employeeName);
+                if (newRecords[0].employeeDept) setEmployeeDept(newRecords[0].employeeDept);
+                
+                let msg = `✅ 成功智慧解析並匯入 ${newRecords.length} 筆新報銷明細！`;
+                if (duplicateCount > 0) {
+                  msg += `\n\n⚠️ 系統比對發現有 ${duplicateCount} 筆憑證與本機現存資料重複，已自動為您剔除，防止重複報帳。`;
+                }
+                triggerAlert(msg);
+              } else {
+                if (duplicateCount > 0) {
+                  triggerAlert(`⚠️ 匯入的 ${duplicateCount} 筆資料皆與本機現存明細完全重複，已全數忽略，不作匯入。`);
+                } else {
+                  triggerAlert("匯入檔案解析成功，但無有效明細可匯入。");
+                }
+              }
             }
           } catch (err) {
             triggerAlert("匯入檔案解析失敗，請確認是否為可讀取的 CSV 檔案。");
