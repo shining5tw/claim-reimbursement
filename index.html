@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>費用報銷彙整表 v2.6.0</title>
+  <title>費用報銷彙整表 v2.7.0</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React 18 & ReactDOM 18 CDN -->
@@ -47,7 +47,7 @@
 
     const TARGET_COMPANY = "茂生食品股份有限公司";
     const TARGET_TAX_ID = "85099593";
-    const VERSION = "v2.6.0";
+    const VERSION = "v2.7.0";
     const SUBSIDY_RATE = 6; // 每公里自駕補貼費率 (NTD)
 
     // --- 憑證形式 ---
@@ -214,11 +214,25 @@
         localStorage.setItem("expense_emp_dept", employeeDept);
       }, [employeeDept]);
 
+      // --- 每月 1 號申報提醒 ---
+      useEffect(() => {
+        const today = new Date();
+        if (today.getDate() === 1) {
+          const lastReminder = localStorage.getItem("expense_monthly_reminder");
+          const todayMonth = today.toISOString().slice(0, 7); // e.g. "2026-06"
+          if (lastReminder !== todayMonth) {
+            triggerAlert(`📅 溫馨提醒：今天是 ${today.getMonth() + 1} 月 1 日，請記得彙整並匯出上個月的報銷明細，以利後續請款作業！`);
+            localStorage.setItem("expense_monthly_reminder", todayMonth);
+          }
+        }
+      }, []);
+
       // --- UI 控制狀態 ---
       const [showAddModal, setShowAddModal] = useState(false);
       const [showConfirmModal, setShowConfirmModal] = useState(false);
       const [showAlertModal, setShowAlertModal] = useState(false);
       const [showExportModal, setShowExportModal] = useState(false);
+      const [showDuplicateModal, setShowDuplicateModal] = useState(false);
       const [alertMessage, setAlertMessage] = useState("");
       
       // --- 影像上傳與檔案選擇相關 ---
@@ -234,6 +248,7 @@
       // --- 行內編輯（Inline Row Edit）狀態 ---
       const [editingId, setEditingId] = useState(null);
       const [editRowData, setEditRowData] = useState(null);
+      const [duplicateIds, setDuplicateIds] = useState([]); // 用於匯出防呆
 
       // --- 當前編輯/核對中的草稿暫存區 ---
       const [currentRecord, setCurrentRecord] = useState({
@@ -347,7 +362,7 @@
         e.target.value = "";
       };
 
-      // --- 背景非阻塞 OCR 辨識流程 ---
+      // --- 背景非阻塞 OCR 辨識流程 (升級支援單張/多張 A4 憑證同時辨識) ---
       const startBackgroundOCR = async (base64Image) => {
         if (ocrControllerRef.current) ocrControllerRef.current.abort();
         ocrControllerRef.current = new AbortController();
@@ -374,13 +389,14 @@
                   contents: [{
                     parts: [
                       { 
-                        text: `您是專業的台灣財務收支發票與車票辨識專家。請精確擷取圖片中的所有文字資訊，並根據以下 JSON 格式回傳辨識結果。
+                        text: `您是專業的台灣財務收支發票與車票辨識專家。
+                        圖片中可能包含「單張」或「多張貼在A4紙上的」憑證。請精確擷取圖片中「所有」憑證的文字資訊，並根據以下 JSON Array 格式回傳多筆辨識結果。
                         
                         重要抓取規則（請嚴格遵守）：
                         1. date (憑證日期): 尋找票根、發票或收據上的「實際交易/乘車日期」 (格式 YYYY-MM-DD)。**絕對不可使用系統當前日期**。
-                        2. form (憑證形式): 根據憑證特徵精準分類。例如：高鐵/台鐵/捷運票請填「紙質車票」或「電子車票」，計程車收據請填「計程車乘車證明」。必須是以下選項之一: "電子發票"、"手寫發票"、"機打發票"、"紙質車票"、"電子車票"、"計程車乘車證明"、"電子收據"、"手寫收據"、"其他"。
+                        2. form (憑證形式): 根據憑證特徵精準分類。例如：高鐵/台鐵/捷運票請填「紙質車票」或「電子車票」，計程車收據請填「計程車乘車證明」。必須是: "電子發票"、"手寫發票"、"機打發票"、"紙質車票"、"電子車票"、"計程車乘車證明"、"電子收據"、"手寫收據"、"其他"。
                         3. category (主科目): 必須是: "交通費"、"住宿費"、"膳雜費"、"餐飲費(交際費)"、"差旅費油資補貼"、"其他(手動輸入)" 之一。
-                        4. subCategory (副科目): 若 category 為交通費，請務必填入 "大眾運輸"、"計程車"、"ETC過路費"、"加油單"、"停車費" 之一（如高鐵票請填「大眾運輸」）。否則留空。
+                        4. subCategory (副科目): 若 category 為交通費，請務必填入 "大眾運輸"、"計程車"、"ETC過路費"、"加油單"、"停車費" 之一。否則留空。
                         5. amount (費用金額): 請精準尋找「NT$」、「總計金額」、「車資」、「合計」、「實付金額」、「TOTAL」後方的數字作為總金額 (整數)。忽略單項小計。
                         6. description: 針對項目的簡短說明 (如: 高鐵車票 台北-左營)。
                         7. companyTitle: 買受人/發票抬頭。無抬頭請留空。
@@ -397,18 +413,22 @@
                   generationConfig: {
                     responseMimeType: "application/json",
                     responseSchema: {
-                      type: "OBJECT",
-                      properties: {
-                        date: { type: "STRING" },
-                        form: { type: "STRING" },
-                        category: { type: "STRING" },
-                        subCategory: { type: "STRING" },
-                        amount: { type: "INTEGER" },
-                        description: { type: "STRING" },
-                        companyTitle: { type: "STRING" },
-                        taxId: { type: "STRING" }
-                      },
-                      required: ["date", "form", "category", "amount", "description", "companyTitle", "taxId"]
+                      type: "ARRAY",
+                      description: "圖片中所有的發票、車票或收據。若有多張，請回傳多個物件。",
+                      items: {
+                        type: "OBJECT",
+                        properties: {
+                          date: { type: "STRING" },
+                          form: { type: "STRING" },
+                          category: { type: "STRING" },
+                          subCategory: { type: "STRING" },
+                          amount: { type: "INTEGER" },
+                          description: { type: "STRING" },
+                          companyTitle: { type: "STRING" },
+                          taxId: { type: "STRING" }
+                        },
+                        required: ["date", "form", "category", "amount", "description", "companyTitle", "taxId"]
+                      }
                     }
                   }
                 })
@@ -428,31 +448,54 @@
             delay *= 2;
           }
 
-          if (success && parsedData) {
-            // 背景完成後，智慧回填（僅回填當前為空或預設的欄位）
-            setCurrentRecord(prev => ({
-              ...prev,
-              date: parsedData.date || prev.date,
-              form: CERTIFICATE_FORMS.includes(parsedData.form) ? parsedData.form : prev.form,
-              formCustom: CERTIFICATE_FORMS.includes(parsedData.form) ? "" : parsedData.form,
-              category: MAIN_SUBJECTS.includes(parsedData.category) ? parsedData.category : prev.category,
-              categoryCustom: MAIN_SUBJECTS.includes(parsedData.category) ? "" : parsedData.category,
-              subCategory: parsedData.subCategory || prev.subCategory,
-              amount: parsedData.amount || prev.amount,
-              description: parsedData.description || prev.description,
-              companyTitle: parsedData.companyTitle || prev.companyTitle,
-              taxId: parsedData.taxId || prev.taxId
-            }));
+          if (success && parsedData && Array.isArray(parsedData) && parsedData.length > 0) {
+            if (parsedData.length === 1) {
+              // 單張憑證：直接回填當前畫面
+              const item = parsedData[0];
+              setCurrentRecord(prev => ({
+                ...prev,
+                date: item.date || prev.date,
+                form: CERTIFICATE_FORMS.includes(item.form) ? item.form : prev.form,
+                formCustom: CERTIFICATE_FORMS.includes(item.form) ? "" : item.form,
+                category: MAIN_SUBJECTS.includes(item.category) ? item.category : prev.category,
+                categoryCustom: MAIN_SUBJECTS.includes(item.category) ? "" : item.category,
+                subCategory: item.subCategory || prev.subCategory,
+                amount: item.amount || prev.amount,
+                description: item.description || prev.description,
+                companyTitle: item.companyTitle || prev.companyTitle,
+                taxId: item.taxId || prev.taxId
+              }));
+            } else {
+              // 多張憑證 (例如 A4 上貼了多張)：自動批次加入表格
+              const newRecords = parsedData.map((item, idx) => ({
+                id: Date.now() + idx,
+                employeeName: employeeName || "未填寫",
+                employeeDept: employeeDept || "未填寫",
+                date: item.date || new Date().toISOString().split("T")[0],
+                form: CERTIFICATE_FORMS.includes(item.form) ? item.form : "其他",
+                formCustom: CERTIFICATE_FORMS.includes(item.form) ? "" : item.form,
+                category: MAIN_SUBJECTS.includes(item.category) ? item.category : "其他(手動輸入)",
+                categoryCustom: MAIN_SUBJECTS.includes(item.category) ? "" : item.category,
+                subCategory: item.subCategory || "",
+                amount: item.amount || 0,
+                description: item.description || "A4多張憑證自動辨識",
+                companyTitle: item.companyTitle || "",
+                taxId: item.taxId || "",
+                startLocation: "",
+                endLocation: "",
+                mileage: "",
+                subsidyAmount: ""
+              }));
+              setRecords(prev => [...newRecords, ...prev]);
+              setShowConfirmModal(false);
+              triggerAlert(`✅ 成功在圖片中同步辨識出 ${parsedData.length} 張憑證！\n已全數自動加入下方明細表，請直接在表格中點選「編輯」進行最後確認。`);
+            }
           } else {
-            // API 連線失敗或無法精確解析時，退回基本模擬回填，避免卡死
+            // API 連線失敗或無法精確解析時，退回基本模擬回填
             const rand = Math.random();
             let mockTitle = "茂生食品股份有限公司";
             let mockTaxId = "85099593";
-            
-            if (rand < 0.3) {
-              mockTitle = "個人憑證";
-              mockTaxId = "";
-            }
+            if (rand < 0.3) { mockTitle = "個人憑證"; mockTaxId = ""; }
 
             setCurrentRecord(prev => ({
               ...prev,
@@ -504,6 +547,8 @@
           triggerAlert("請先在首頁填寫「員工姓名」與「部門」資訊！");
           return;
         }
+
+        cancelOcr(); // 儲存時自動中斷未完成的背景辨識
 
         const isTicketExempt = currentRecord.form.includes("車票") || currentRecord.form === "計程車乘車證明";
         const cleanTitle = currentRecord.companyTitle.trim();
@@ -621,11 +666,11 @@
         setEditRowData(null);
       };
 
-      // --- CSV 處理 ---
-      const generateCSVContent = () => {
+      // --- CSV 處理與匯出防呆邏輯 ---
+      const generateCSVContent = (recordsToExport) => {
         let csvContent = "\uFEFF"; 
         csvContent += "姓名,部門,憑證日期,憑證形式,會計科目,副科目,費用金額,發票抬頭,統一編號,起始地點,結束地點,行駛里程(km),油資補貼,說明\n";
-        records.forEach(r => {
+        recordsToExport.forEach(r => {
           const formText = r.form === "其他" ? r.formCustom : r.form;
           const catText = r.category === "其他(手動輸入)" ? r.categoryCustom : r.category;
           const isDrive = r.category === "差旅費油資補貼";
@@ -634,9 +679,45 @@
         return csvContent;
       };
 
+      const handleExportClick = () => {
+        if (records.length === 0) { triggerAlert("目前無明細可供匯出。"); return; }
+        
+        // 尋找重複項目 (依據 日期+金額+科目+統編 判斷)
+        const seen = new Set();
+        const dups = [];
+        records.forEach(r => {
+          const key = `${r.date}_${r.amount}_${r.category}_${r.taxId}`;
+          if (seen.has(key)) {
+            dups.push(r.id);
+          } else {
+            seen.add(key);
+          }
+        });
+
+        if (dups.length > 0) {
+          setDuplicateIds(dups);
+          setShowDuplicateModal(true);
+        } else {
+          setShowExportModal(true);
+        }
+      };
+
+      const removeDuplicatesAndExport = () => {
+        const filtered = records.filter(r => !duplicateIds.includes(r.id));
+        setRecords(filtered);
+        setShowDuplicateModal(false);
+        // 短暫延遲確保留存狀態後再顯示匯出選單
+        setTimeout(() => setShowExportModal(true), 100);
+      };
+
+      const ignoreDuplicatesAndExport = () => {
+        setShowDuplicateModal(false);
+        setShowExportModal(true);
+      };
+
       const handleSaveLocal = () => {
         if (records.length === 0) return;
-        const csvContent = generateCSVContent();
+        const csvContent = generateCSVContent(records);
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -650,14 +731,14 @@
 
       const handleSystemShare = async () => {
         if (records.length === 0) return;
-        const csvContent = generateCSVContent();
+        const csvContent = generateCSVContent(records);
         const filename = `費用報銷彙整表_${new Date().toISOString().split("T")[0]}.csv`;
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         if (navigator.canShare && navigator.share) {
           try {
             const file = new File([blob], filename, { type: "text/csv" });
             if (navigator.canShare({ files: [file] })) {
-              await navigator.share({ files: [file], title: "費用報銷彙整表", text: "請查收導出之費用報銷彙整表 CSV 檔案。" });
+              await navigator.share({ files: [file], title: "費用報銷彙整表", text: "請查收匯出之費用報銷彙整表 CSV 檔案。" });
               setShowExportModal(false);
             } else {
               handleSaveLocal();
@@ -670,6 +751,7 @@
         }
       };
 
+      // --- 寬容 CSV 匯入 ---
       const findFuzzyIndex = (header, keywords) => {
         return header.findIndex(h => {
           const clean = h.trim().toLowerCase().replace(/^\uFEFF/, '');
@@ -763,7 +845,7 @@
               setRecords(prev => [...importedRecords, ...prev]);
               if (importedRecords[0].employeeName) setEmployeeName(importedRecords[0].employeeName);
               if (importedRecords[0].employeeDept) setEmployeeDept(importedRecords[0].employeeDept);
-              triggerAlert(`成功寬容解析並匯入 ${importedRecords.length} 筆報銷明細！`);
+              triggerAlert(`成功智慧解析並匯入 ${importedRecords.length} 筆報銷明細！`);
             }
           } catch (err) {
             triggerAlert("匯入檔案解析失敗，請確認是否為可讀取的 CSV 檔案。");
@@ -789,7 +871,7 @@
                 茂生食品股份有限公司
               </span>
               <h1 class="text-2xl font-bold mt-2">費用報銷彙整表</h1>
-              <p class="text-slate-400 text-xs mt-1">全體員工通用・憑證行內秒速編輯、智慧寬容歷史匯入與多管道影像辨識</p>
+              <p class="text-slate-400 text-xs mt-1">全體員工通用・支援 A4 多憑證同時辨識與防重複匯出</p>
             </div>
             <div class="mt-4 sm:mt-0">
               <span class="bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg text-sm border border-slate-700 font-mono">
@@ -864,13 +946,10 @@
             </button>
             <input type="file" ref={fileInputRef} accept=".csv,.txt" class="hidden" onChange={handleCSVImport} />
             <button 
-              onClick={() => {
-                if (records.length === 0) { triggerAlert("目前無明細可供匯出。"); return; }
-                setShowExportModal(true);
-              }}
+              onClick={handleExportClick}
               class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2"
             >
-              <IconDownload /><span>匯整導出 CSV 報表</span>
+              <IconDownload /><span>彙整匯出 CSV 報表</span>
             </button>
           </div>
 
@@ -1024,7 +1103,7 @@
                       <div class="p-3 bg-indigo-100 text-indigo-600 rounded-xl"><IconUpload /></div>
                       <div>
                         <span class="block font-bold text-slate-800">拍照或相簿圖庫匯入</span>
-                        <span class="block text-slate-400 text-xs mt-0.5">直接拍照或選擇手機圖庫</span>
+                        <span class="block text-slate-400 text-xs mt-0.5">可同時拍攝 A4 紙上多張憑證</span>
                       </div>
                     </div>
                     <span class="text-slate-300">❯</span>
@@ -1072,7 +1151,7 @@
                 <div class="p-6 max-h-[70vh] overflow-y-auto">
                   {isOcrLoading && (
                     <div class="mb-5 bg-indigo-50 border border-indigo-200 p-3.5 rounded-2xl flex items-center justify-between animate-pulse-light">
-                      <span class="text-xs font-bold text-indigo-800">🤖 AI 背景辨識中... 您可先手動填寫！</span>
+                      <span class="text-xs font-bold text-indigo-800">🤖 AI 背景辨識中... 若有多張憑證將自動加入明細表！</span>
                     </div>
                   )}
 
@@ -1228,11 +1307,35 @@
             </div>
           )}
 
-          {/* --- 視窗 3：匯出 --- */}
+          {/* --- 視窗 3：匯出防重複警告框 --- */}
+          {showDuplicateModal && (
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl text-center animate-in fade-in zoom-in-95 duration-200">
+                <div class="flex justify-center mb-4"><span class="text-5xl">⚠️</span></div>
+                <h3 class="text-xl font-bold text-amber-600 mb-2">發現疑似重複憑證</h3>
+                <div class="text-sm text-slate-600 text-left bg-amber-50 p-4 rounded-xl mb-6">
+                  系統比對發現有 <strong>{duplicateIds.length}</strong> 筆憑證的「日期、金額、科目與統編」完全相同，疑似重複登錄。<br/><br/>請問您要自動刪除這些重複的項目，還是保留全部資料並繼續匯出？
+                </div>
+                <div class="space-y-3">
+                  <button onClick={removeDuplicatesAndExport} class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow transition-colors">
+                    🗑️ 自動刪除重複並匯出
+                  </button>
+                  <button onClick={ignoreDuplicatesAndExport} class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 px-4 rounded-xl transition-colors">
+                    保留全部並繼續匯出
+                  </button>
+                  <button onClick={() => setShowDuplicateModal(false)} class="w-full bg-white hover:bg-slate-50 text-slate-500 py-3 rounded-xl border border-slate-200 transition-colors">
+                    取消匯出
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* --- 視窗 4：匯出 --- */}
           {showExportModal && (
             <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-              <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl text-center">
-                <div class="flex justify-end"><button onClick={() => setShowExportModal(false)} class="text-slate-400 p-1">✕</button></div>
+              <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl text-center animate-in fade-in zoom-in-95 duration-200">
+                <div class="flex justify-end"><button onClick={() => setShowExportModal(false)} class="text-slate-400 p-1 hover:text-slate-600">✕</button></div>
                 <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4"><IconDownload /></div>
                 <h3 class="text-lg font-bold text-slate-900 mb-2">匯出選項</h3>
                 <div class="space-y-3 mt-6">
@@ -1243,14 +1346,14 @@
             </div>
           )}
 
-          {/* --- 視窗 4：警告框 --- */}
+          {/* --- 視窗 5：通用警告框 --- */}
           {showAlertModal && (
             <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
               <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl text-center">
                 <div class="flex justify-center mb-4"><IconAlert /></div>
-                <h3 class="text-lg font-bold text-rose-600 mb-2">核銷失敗</h3>
+                <h3 class="text-lg font-bold text-rose-600 mb-2">系統提示</h3>
                 <div class="text-sm text-slate-600 text-left bg-rose-50 p-4 rounded-xl mb-5 whitespace-pre-wrap">{alertMessage}</div>
-                <button onClick={() => setShowAlertModal(false)} class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl">重新核對</button>
+                <button onClick={() => setShowAlertModal(false)} class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl">確認</button>
               </div>
             </div>
           )}
