@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>費用報銷彙整表 v3.1.1</title>
+  <title>費用報銷彙整表 v3.2.0</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React 18 & ReactDOM 18 CDN -->
@@ -35,8 +35,13 @@
 
     const TARGET_COMPANY = "茂生食品股份有限公司";
     const TARGET_TAX_ID = "85099593";
-    const VERSION = "v3.1.1";
+    const VERSION = "v3.2.0";
     const SUBSIDY_RATE = 6; // 每公里自駕補貼費率 (NTD)
+
+    // --- 申報部門選項 ---
+    const DEPARTMENTS = [
+      "總經理室", "管理部", "財會部", "生產部", "業務部", "稽核室"
+    ];
 
     // --- 憑證形式 ---
     const CERTIFICATE_FORMS = [
@@ -144,11 +149,13 @@
         return saved ? JSON.parse(saved) : [];
       });
       const [employeeName, setEmployeeName] = useState(() => localStorage.getItem("expense_emp_name") || "");
-      const [employeeDept, setEmployeeDept] = useState(() => localStorage.getItem("expense_emp_dept") || "");
+      const [employeeDept, setEmployeeDept] = useState(() => localStorage.getItem("expense_emp_dept") || "總經理室");
+      const [customApiKey, setCustomApiKey] = useState(() => localStorage.getItem("expense_api_key") || "");
 
       useEffect(() => { localStorage.setItem("expense_records_v3", JSON.stringify(records)); }, [records]);
       useEffect(() => { localStorage.setItem("expense_emp_name", employeeName); }, [employeeName]);
       useEffect(() => { localStorage.setItem("expense_emp_dept", employeeDept); }, [employeeDept]);
+      useEffect(() => { localStorage.setItem("expense_api_key", customApiKey); }, [customApiKey]);
 
       // --- 每月 1 號申報提醒 ---
       useEffect(() => {
@@ -169,6 +176,7 @@
       const [showExportModal, setShowExportModal] = useState(false);
       const [showDuplicateModal, setShowDuplicateModal] = useState(false);
       const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
+      const [showSettingsModal, setShowSettingsModal] = useState(false);
       const [alertMessage, setAlertMessage] = useState("");
       
       const [inputMethod, setInputMethod] = useState("");
@@ -268,11 +276,17 @@
         const base64Clean = base64Image.split(",")[1];
         
         try {
-          // 自動判斷執行環境 (解決 404 模型找不到的錯誤)
-          const isExternal = window.location.hostname.includes("github.io") || window.location.hostname === "localhost";
-          const USER_GITHUB_KEY = "AQ.Ab8RN6INBQRqdxUb48_Q-lMhQMzDrmdUCwXd8StmXJeJ2l8WfA";
+          // 自動判斷執行環境，且不再硬編碼金鑰，保護資安
+          const envApiKey = ""; // Canvas 預覽環境會自動由系統代入
+          const finalApiKey = envApiKey || customApiKey; 
           
-          const finalApiKey = isExternal ? USER_GITHUB_KEY : ""; 
+          if (!finalApiKey) {
+            triggerAlert("⚠️ 偵測到外部環境且未設定 API Key！\n請點擊右上角「⚙️ 系統設定」輸入您的專屬金鑰。");
+            setIsOcrLoading(false);
+            return;
+          }
+
+          const isExternal = window.location.hostname.includes("github.io") || window.location.hostname === "localhost";
           const modelName = isExternal ? "gemini-1.5-flash" : "gemini-2.5-flash-preview-09-2025";
           
           const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(finalApiKey)}`;
@@ -598,14 +612,22 @@
               <h1 class="text-2xl font-bold mt-2">費用報銷彙整表</h1>
               <p class="text-slate-400 text-xs mt-1">全體員工通用・支援 A4 多憑證同時高精度辨識</p>
             </div>
-            <div class="mt-4 sm:mt-0"><span class="bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg text-sm border border-slate-700 font-mono">系統版本：{VERSION}</span></div>
+            <div class="mt-4 sm:mt-0 flex flex-col items-start sm:items-end space-y-2">
+              <span class="bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg text-sm border border-slate-700 font-mono">系統版本：{VERSION}</span>
+              <button onClick={() => setShowSettingsModal(true)} class="text-xs text-slate-400 hover:text-white flex items-center transition-colors">⚙️ 系統設定 (API Key)</button>
+            </div>
           </header>
 
           <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-6">
             <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center"><span class="mr-1.5">👤</span> 申報人基本資訊</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label class="block text-xs font-semibold text-slate-500 mb-1">員工姓名 <span class="text-rose-500">*</span></label><input type="text" value={employeeName} onChange={(e) => setEmployeeName(e.target.value)} class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" /></div>
-              <div><label class="block text-xs font-semibold text-slate-500 mb-1">申報部門 <span class="text-rose-500">*</span></label><input type="text" value={employeeDept} onChange={(e) => setEmployeeDept(e.target.value)} class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" /></div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 mb-1">申報部門 <span class="text-rose-500">*</span></label>
+                <select value={employeeDept} onChange={(e) => setEmployeeDept(e.target.value)} class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                  {DEPARTMENTS.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -653,7 +675,12 @@
                         const isEditExempt = editRowData.form.includes("車票") || editRowData.form === "計程車乘車證明";
                         return (
                           <tr key={r.id} class="bg-indigo-50/50">
-                            <td class="py-2 px-2"><input type="text" value={editRowData.employeeName} onChange={e => handleEditFieldChange("employeeName", e.target.value)} class="w-20 border rounded px-1 mb-1 text-xs" /><br/><input type="text" value={editRowData.employeeDept} onChange={e => handleEditFieldChange("employeeDept", e.target.value)} class="w-20 border rounded px-1 text-xs" /></td>
+                            <td class="py-2 px-2">
+                              <input type="text" value={editRowData.employeeName} onChange={e => handleEditFieldChange("employeeName", e.target.value)} class="w-20 border rounded px-1 mb-1 text-xs" /><br/>
+                              <select value={editRowData.employeeDept} onChange={e => handleEditFieldChange("employeeDept", e.target.value)} class="w-20 border rounded px-1 text-xs">
+                                {DEPARTMENTS.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+                              </select>
+                            </td>
                             <td class="py-2 px-2"><input type="date" value={editRowData.date} onChange={e => handleEditFieldChange("date", e.target.value)} class="w-28 border rounded px-1 text-xs" /></td>
                             <td class="py-2 px-2"><select value={editRowData.form} onChange={e => handleEditFieldChange("form", e.target.value)} class="w-24 border rounded px-1 text-xs">{CERTIFICATE_FORMS.map(f => <option key={f}>{f}</option>)}</select></td>
                             <td class="py-2 px-2"><select value={editRowData.category} onChange={e => handleEditFieldChange("category", e.target.value)} class="w-28 border rounded px-1 text-xs mb-1">{MAIN_SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>{editRowData.category === "交通費" && <select value={editRowData.subCategory} onChange={e => handleEditFieldChange("subCategory", e.target.value)} class="w-28 border rounded px-1 text-xs">{TRAFFIC_SUB_SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>}</td>
@@ -786,6 +813,22 @@
             <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
               <div class="bg-white rounded-3xl w-full max-w-sm p-6 text-center"><span class="text-5xl">🗑️</span><h3 class="text-xl font-bold text-rose-600 mb-2 mt-2">確認清除所有明細？</h3><div class="text-sm bg-rose-50 p-4 rounded-xl mb-6">⚠️ 操作無法復原，請確認是否繼續？</div>
                 <div class="space-y-2"><button onClick={confirmClearRecords} class="w-full bg-rose-600 text-white font-bold py-3 rounded-xl">是的，確認清除</button><button onClick={() => setShowClearConfirmModal(false)} class="w-full bg-slate-200 text-slate-800 font-bold py-3 rounded-xl">取消</button></div>
+              </div>
+            </div>
+          )}
+
+          {showSettingsModal && (
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div class="bg-white rounded-3xl w-full max-w-md p-6 animate-in fade-in zoom-in-95">
+                <div class="flex justify-between items-center mb-5"><h3 class="text-lg font-bold text-slate-900">⚙️ 系統設定</h3><button onClick={() => setShowSettingsModal(false)} class="text-slate-400 hover:text-slate-600">✕</button></div>
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Google Gemini API Key</label>
+                    <p class="text-xs text-slate-500 mb-3 leading-relaxed">為保護資安，API Key 不再寫死於原始碼中。若您要在 GitHub Pages 等外部環境使用 AI 辨識，請在此填入您的專屬金鑰 (金鑰僅儲存於您目前的瀏覽器本地端，安全無虞)。</p>
+                    <input type="password" placeholder="請輸入以 AIzaSy 開頭的金鑰..." value={customApiKey} onChange={(e) => setCustomApiKey(e.target.value)} class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:border-indigo-500 outline-none" />
+                  </div>
+                  <button onClick={() => setShowSettingsModal(false)} class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl shadow transition-colors">儲存設定並關閉</button>
+                </div>
               </div>
             </div>
           )}
