@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>費用報銷彙整表 v3.2.2</title>
+  <title>費用報銷彙整表 v3.2.3</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React 18 & ReactDOM 18 CDN -->
@@ -35,7 +35,7 @@
 
     const TARGET_COMPANY = "茂生食品股份有限公司";
     const TARGET_TAX_ID = "85099593";
-    const VERSION = "v3.2.2";
+    const VERSION = "v3.2.3";
     const SUBSIDY_RATE = 6; // 每公里自駕補貼費率 (NTD)
 
     // --- 申報部門選項 ---
@@ -270,17 +270,19 @@
         ocrControllerRef.current = new AbortController();
         setIsOcrLoading(true);
         
-        // 1. 動態擷取正確的 MIME Type，避免 PNG/PDF 被當成 JPEG 導致 AI 伺服器報錯
         const mimeMatch = base64Image.match(/^data:(.*?);base64,/);
         const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
         const base64Clean = base64Image.split(",")[1];
         
         try {
-          // 確保如果是空字串傳入也能透過 Canvas 環境順利擷取金鑰
           const apiKey = customApiKey.trim(); 
-          // 統一使用支援度最高的模型，避免出現 404 找不到模型的錯誤
-          const modelName = "gemini-2.5-flash-preview-09-2025";
-          const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
+          // 有金鑰走 gemini-1.5-flash，無金鑰(Canvas)走預覽版
+          const modelName = apiKey ? "gemini-1.5-flash" : "gemini-2.5-flash-preview-09-2025";
+          
+          // ⚠️ 重大修正：若有自訂金鑰，不要附加在 URL，避免被伺服器誤判為 OAuth Token。若為 Canvas 環境，維持 ?key= 給系統攔截
+          const apiURL = apiKey 
+            ? `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`
+            : `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=`;
           
           let success = false;
           let parsedRecords = null;
@@ -289,9 +291,15 @@
 
           for (let i = 0; i < 5; i++) {
             try {
+              // ⚠️ 重大修正：將 AQ. 開頭的金鑰置入 HTTP Header 傳送
+              const headers = { "Content-Type": "application/json" };
+              if (apiKey) {
+                headers["x-goog-api-key"] = apiKey;
+              }
+
               const response = await fetch(apiURL, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: headers,
                 signal: ocrControllerRef.current.signal,
                 body: JSON.stringify({
                   contents: [{
@@ -349,7 +357,7 @@
                   break;
                 }
               } else {
-                if (response.status === 401 || response.status === 403) {
+                if (response.status === 401 || response.status === 403 || response.status === 404) {
                   isAuthError = true;
                   break; // 金鑰認證失敗，直接跳出迴圈不需重試
                 }
@@ -404,7 +412,7 @@
           } else {
              // 4. 明確提示 AI 拒絕連線的原因，並給予防呆預設值
              if (isAuthError) {
-               triggerAlert("⚠️ AI 授權失敗 (401/403)：您填寫的 API Key 無效。\n請點擊右上角⚙️設定，確認輸入的是 Google Gemini API Key (通常以 AIzaSy 開頭)。系統已暫時帶入預設值。");
+               triggerAlert("⚠️ AI 授權失敗：您填寫的 API Key 無法通過驗證或格式不支援。\n（伺服器拒絕了您的 AQ. 金鑰）。系統已暫時帶入預設值。");
              } else {
                triggerAlert("⚠️ AI 辨識連線失敗或格式不支援，已暫時帶入預設值，請手動校正欄位。");
              }
@@ -826,7 +834,7 @@
                   <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2">Google Gemini API Key</label>
                     <p class="text-xs text-slate-500 mb-3 leading-relaxed">為保護資安，API Key 不再寫死於原始碼中。若您要在 GitHub Pages 等外部環境使用 AI 辨識，請在此填入您的專屬金鑰 (金鑰僅儲存於您目前的瀏覽器本地端，安全無虞)。</p>
-                    <input type="password" placeholder="請輸入以 AIzaSy 開頭的金鑰..." value={customApiKey} onChange={(e) => setCustomApiKey(e.target.value)} class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:border-indigo-500 outline-none" />
+                    <input type="password" placeholder="請輸入您的金鑰..." value={customApiKey} onChange={(e) => setCustomApiKey(e.target.value)} class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:border-indigo-500 outline-none" />
                   </div>
                   <button onClick={() => setShowSettingsModal(false)} class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl shadow transition-colors">儲存設定並關閉</button>
                 </div>
