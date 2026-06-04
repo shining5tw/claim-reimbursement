@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>費用報銷彙整表 v3.2.0</title>
+  <title>費用報銷彙整表 v3.2.1</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React 18 & ReactDOM 18 CDN -->
@@ -35,7 +35,7 @@
 
     const TARGET_COMPANY = "茂生食品股份有限公司";
     const TARGET_TAX_ID = "85099593";
-    const VERSION = "v3.2.0";
+    const VERSION = "v3.2.1";
     const SUBSIDY_RATE = 6; // 每公里自駕補貼費率 (NTD)
 
     // --- 申報部門選項 ---
@@ -276,24 +276,16 @@
         const base64Clean = base64Image.split(",")[1];
         
         try {
-          // 自動判斷執行環境，且不再硬編碼金鑰，保護資安
-          const envApiKey = ""; // Canvas 預覽環境會自動由系統代入
-          const finalApiKey = envApiKey || customApiKey; 
-          
-          if (!finalApiKey) {
-            triggerAlert("⚠️ 偵測到外部環境且未設定 API Key！\n請點擊右上角「⚙️ 系統設定」輸入您的專屬金鑰。");
-            setIsOcrLoading(false);
-            return;
-          }
-
-          const isExternal = window.location.hostname.includes("github.io") || window.location.hostname === "localhost";
-          const modelName = isExternal ? "gemini-1.5-flash" : "gemini-2.5-flash-preview-09-2025";
-          
-          const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(finalApiKey)}`;
+          // 確保如果是空字串傳入也能透過 Canvas 環境順利擷取金鑰
+          const apiKey = customApiKey.trim(); 
+          // 有設定金鑰時走穩定版 1.5，無設定 (Canvas) 走 2.5 預覽版
+          const modelName = apiKey ? "gemini-1.5-flash" : "gemini-2.5-flash-preview-09-2025";
+          const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
           
           let success = false;
           let parsedRecords = null;
           let delay = 1000;
+          let isAuthError = false;
 
           for (let i = 0; i < 5; i++) {
             try {
@@ -325,7 +317,6 @@
                   generationConfig: {
                     responseMimeType: "application/json",
                     responseSchema: {
-                      // 3. 改為 OBJECT 包裝 ARRAY，大幅提高 Gemini 輸出穩定性，避免 400 錯誤
                       type: "OBJECT",
                       properties: {
                         records: {
@@ -358,6 +349,10 @@
                   break;
                 }
               } else {
+                if (response.status === 401 || response.status === 403) {
+                  isAuthError = true;
+                  break; // 金鑰認證失敗，直接跳出迴圈不需重試
+                }
                 const errorText = await response.text();
                 console.error("API 請求錯誤:", errorText);
               }
@@ -365,6 +360,7 @@
               if (err.name === 'AbortError') return;
               console.error("Fetch 錯誤:", err);
             }
+            if (isAuthError) break; // 若確認為授權錯誤，直接停止重試
             await new Promise(resolve => setTimeout(resolve, delay));
             delay *= 2;
           }
@@ -406,8 +402,13 @@
               triggerAlert(`✅ 成功同時辨識出 ${parsedRecords.length} 張憑證！\n已全數加入下方明細表，請於表格中確認。`);
             }
           } else {
-             // 4. 明確提示 AI 拒絕連線，而非默默帶入假資料
-             triggerAlert("⚠️ AI 辨識連線失敗或格式不支援，已暫時帶入預設值，請手動校正欄位。");
+             // 4. 明確提示 AI 拒絕連線的原因，並給予防呆預設值
+             if (isAuthError) {
+               triggerAlert("⚠️ AI 授權失敗 (401/403)：您填寫的 API Key 無效。\n請點擊右上角⚙️設定，確認輸入的是 Google Gemini API Key (通常以 AIzaSy 開頭)。系統已暫時帶入預設值。");
+             } else {
+               triggerAlert("⚠️ AI 辨識連線失敗或格式不支援，已暫時帶入預設值，請手動校正欄位。");
+             }
+             
              const rand = Math.random();
              let mockTitle = "茂生食品股份有限公司";
              let mockTaxId = "85099593";
