@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>費用報銷彙整表 v3.2.3</title>
+  <title>費用報銷彙整表 v3.3.0</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React 18 & ReactDOM 18 CDN -->
@@ -35,7 +35,7 @@
 
     const TARGET_COMPANY = "茂生食品股份有限公司";
     const TARGET_TAX_ID = "85099593";
-    const VERSION = "v3.2.3";
+    const VERSION = "v3.3.0";
     const SUBSIDY_RATE = 6; // 每公里自駕補貼費率 (NTD)
 
     // --- 申報部門選項 ---
@@ -276,30 +276,33 @@
         
         try {
           const apiKey = customApiKey.trim(); 
-          // 有金鑰走 gemini-1.5-flash，無金鑰(Canvas)走預覽版
+          const isCanvas = window.location.hostname === "googleusercontent.com" || window.location.hostname.includes("immersive");
+          
+          // 💡 防呆檢查：如果是在公開網域且沒填寫金鑰，直接中斷並溫馨提示，避免送出無效請求
+          if (!apiKey && !isCanvas) {
+            triggerAlert("⚠️ 偵測到您尚未設定 API Key！\n請點擊右上角「⚙️ 系統設定」輸入您的專屬 Google API Key 以啟用 AI 辨識。");
+            setIsOcrLoading(false);
+            return;
+          }
+
+          // 💡 自動選取模型：有金鑰使用最新穩定版 1.5，免金鑰測試平台使用預覽版
           const modelName = apiKey ? "gemini-1.5-flash" : "gemini-2.5-flash-preview-09-2025";
           
-          // ⚠️ 重大修正：若有自訂金鑰，不要附加在 URL，避免被伺服器誤判為 OAuth Token。若為 Canvas 環境，維持 ?key= 給系統攔截
-          const apiURL = apiKey 
-            ? `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`
-            : `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=`;
+          // 💡 重大修正：將金鑰放回 URL Query Parameter，避開自訂 Header 造成的 CORS 預檢 404 問題
+          const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
           
           let success = false;
           let parsedRecords = null;
           let delay = 1000;
           let isAuthError = false;
+          let errorMsgDetail = "";
 
           for (let i = 0; i < 5; i++) {
             try {
-              // ⚠️ 重大修正：將 AQ. 開頭的金鑰置入 HTTP Header 傳送
-              const headers = { "Content-Type": "application/json" };
-              if (apiKey) {
-                headers["x-goog-api-key"] = apiKey;
-              }
-
+              // 💡 回歸最乾淨的 Fetch，不帶任何自訂 Header
               const response = await fetch(apiURL, {
                 method: "POST",
-                headers: headers,
+                headers: { "Content-Type": "application/json" },
                 signal: ocrControllerRef.current.signal,
                 body: JSON.stringify({
                   contents: [{
@@ -357,18 +360,29 @@
                   break;
                 }
               } else {
-                if (response.status === 401 || response.status === 403 || response.status === 404) {
+                const errCode = response.status;
+                const errData = await response.json().catch(()=>({}));
+                console.error(`API 請求錯誤 (${errCode}):`, errData);
+
+                if (errCode === 400) {
                   isAuthError = true;
-                  break; // 金鑰認證失敗，直接跳出迴圈不需重試
+                  errorMsgDetail = "API Key 格式不正確，或要求無效 (400)。";
+                  break;
+                } else if (errCode === 401 || errCode === 403) {
+                  isAuthError = true;
+                  errorMsgDetail = "API Key 無效、過期或專案權限不足 (401/403)。";
+                  break; 
+                } else if (errCode === 404) {
+                  isAuthError = true;
+                  errorMsgDetail = `找不到指定的模型 (${modelName})，請確認金鑰對應的專案設定 (404)。`;
+                  break; 
                 }
-                const errorText = await response.text();
-                console.error("API 請求錯誤:", errorText);
               }
             } catch (err) {
               if (err.name === 'AbortError') return;
-              console.error("Fetch 錯誤:", err);
+              console.error("Fetch 網路錯誤:", err);
             }
-            if (isAuthError) break; // 若確認為授權錯誤，直接停止重試
+            if (isAuthError) break; 
             await new Promise(resolve => setTimeout(resolve, delay));
             delay *= 2;
           }
@@ -410,9 +424,9 @@
               triggerAlert(`✅ 成功同時辨識出 ${parsedRecords.length} 張憑證！\n已全數加入下方明細表，請於表格中確認。`);
             }
           } else {
-             // 4. 明確提示 AI 拒絕連線的原因，並給予防呆預設值
+             // 💡 發生錯誤時精準顯示原因
              if (isAuthError) {
-               triggerAlert("⚠️ AI 授權失敗：您填寫的 API Key 無法通過驗證或格式不支援。\n（伺服器拒絕了您的 AQ. 金鑰）。系統已暫時帶入預設值。");
+               triggerAlert(`⚠️ AI 授權失敗：\n${errorMsgDetail}\n請點擊右上角「⚙️ 系統設定」重新確認您的金鑰內容。系統已暫時帶入預設值。`);
              } else {
                triggerAlert("⚠️ AI 辨識連線失敗或格式不支援，已暫時帶入預設值，請手動校正欄位。");
              }
