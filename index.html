@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>費用報銷彙整表 v2.9.0</title>
+  <title>費用報銷彙整表 v3.0.0</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React 18 & ReactDOM 18 CDN -->
@@ -16,26 +16,14 @@
       background-color: #f8fafc;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft JhengHei", sans-serif;
     }
-    /* 精緻客製滾動條 */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #f1f5f9;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-    /* 背景呼吸閃爍動畫 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     @keyframes pulse-light {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.6; }
     }
-    .animate-pulse-light {
-      animation: pulse-light 1.8s infinite;
-    }
+    .animate-pulse-light { animation: pulse-light 1.8s infinite; }
   </style>
 </head>
 <body class="text-slate-800 antialiased min-h-screen">
@@ -47,7 +35,7 @@
 
     const TARGET_COMPANY = "茂生食品股份有限公司";
     const TARGET_TAX_ID = "85099593";
-    const VERSION = "v2.9.0";
+    const VERSION = "v3.0.0";
     const SUBSIDY_RATE = 6; // 每公里自駕補貼費率 (NTD)
 
     // --- 憑證形式 ---
@@ -93,8 +81,7 @@
     // --- 大圓里程計算函數 (Haversine) + 1.35x 蜿蜒度修正 ---
     const calculateMapDistance = (start, end) => {
       if (!start || !end) return 0;
-      let p1 = null;
-      let p2 = null;
+      let p1 = null; let p2 = null;
 
       for (const [key, value] of Object.entries(TAIWAN_LOCATIONS)) {
         if (start.toLowerCase().includes(key)) p1 = value;
@@ -102,61 +89,35 @@
       }
 
       if (!p1) {
-        let h = 0;
-        for (let i = 0; i < start.length; i++) h = start.charCodeAt(i) + ((h << 5) - h);
+        let h = 0; for (let i = 0; i < start.length; i++) h = start.charCodeAt(i) + ((h << 5) - h);
         p1 = { lon: 120.2 + (Math.abs(h % 150) / 100), lat: 22.5 + (Math.abs((h >> 3) % 250) / 100) };
       }
       if (!p2) {
-        let h = 0;
-        for (let i = 0; i < end.length; i++) h = end.charCodeAt(i) + ((h << 5) - h);
+        let h = 0; for (let i = 0; i < end.length; i++) h = end.charCodeAt(i) + ((h << 5) - h);
         p2 = { lon: 120.2 + (Math.abs(h % 150) / 100), lat: 22.5 + (Math.abs((h >> 3) % 250) / 100) };
       }
 
-      const R = 6371; // km
+      const R = 6371;
       const dLat = (p2.lat - p1.lat) * Math.PI / 180;
       const dLon = (p2.lon - p1.lon) * Math.PI / 180;
-      const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      const straightDist = R * c;
-
-      return Math.round(straightDist * 1.35 * 10) / 10;
+      return Math.round(R * c * 1.35 * 10) / 10;
     };
 
-    // --- 圖標 ---
-    const IconPlus = () => (
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-    );
-    const IconUpload = () => (
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
-    );
-    const IconEdit = () => (
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
-    );
-    const IconTrash = () => (
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-    );
-    const IconAlert = () => (
-      <svg class="w-12 h-12 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
-    );
-    const IconDownload = () => (
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
-    );
-    const IconSparkles = () => (
-      <svg class="w-4 h-4 text-indigo-500 animate-pulse" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 21l-.813-5.096L3 15l5.096-.813L9 9l.813 5.096L15 15l-5.096.813zM19.071 4.929l-.707 3.536-3.536.707 3.536.707.707 3.536.707-3.536 3.536-.707-3.536-.707-.707-3.536z" /></svg>
-    );
-    const IconCar = () => (
-      <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.129-1.125v-3.07m-1.594-4.13a11.95 11.95 0 01-2.223-.084l-1.251-4.684a1.5 1.5 0 00-1.45-1.11H8.09a1.5 1.5 0 00-1.45 1.11L5.388 9.366a12.013 12.013 0 01-2.223.084M19.5 14.25v-1.5a1.5 1.5 0 00-1.5-1.5h-12a1.5 1.5 0 00-1.5 1.5v1.5m15 0h-15" /></svg>
-    );
-    const IconShare = () => (
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186l5.302-2.356a2.25 2.25 0 11.666 1.498L7.217 10.907zm0 2.186l5.302 2.356a2.25 2.25 0 11-.666 1.498l-5.302-2.356z" /></svg>
-    );
-    const IconFolderOpen = () => (
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" /></svg>
-    );
+    // --- SVG 圖標 ---
+    const IconPlus = () => <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>;
+    const IconUpload = () => <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>;
+    const IconEdit = () => <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>;
+    const IconTrash = () => <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>;
+    const IconAlert = () => <svg class="w-12 h-12 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>;
+    const IconDownload = () => <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>;
+    const IconSparkles = () => <svg class="w-4 h-4 text-indigo-500 animate-pulse" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 21l-.813-5.096L3 15l5.096-.813L9 9l.813 5.096L15 15l-5.096.813zM19.071 4.929l-.707 3.536-3.536.707 3.536.707.707 3.536.707-3.536 3.536-.707-3.536-.707-.707-3.536z" /></svg>;
+    const IconCar = () => <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.129-1.125v-3.07m-1.594-4.13a11.95 11.95 0 01-2.223-.084l-1.251-4.684a1.5 1.5 0 00-1.45-1.11H8.09a1.5 1.5 0 00-1.45 1.11L5.388 9.366a12.013 12.013 0 01-2.223.084M19.5 14.25v-1.5a1.5 1.5 0 00-1.5-1.5h-12a1.5 1.5 0 00-1.5 1.5v1.5m15 0h-15" /></svg>;
+    const IconShare = () => <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186l5.302-2.356a2.25 2.25 0 11.666 1.498L7.217 10.907zm0 2.186l5.302 2.356a2.25 2.25 0 11-.666 1.498l-5.302-2.356z" /></svg>;
+    const IconFolderOpen = () => <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" /></svg>;
 
-    // --- 精準輕量 CSV 解析狀態機 ---
+    // --- CSV 解析器 ---
     const parseCSV = (text) => {
       const lines = [];
       let row = [""];
@@ -165,124 +126,80 @@
         const c = text[i];
         const next = text[i+1];
         if (c === '"') {
-          if (inQuotes && next === '"') {
-            row[row.length - 1] += '"';
-            i++;
-          } else {
-            inQuotes = !inQuotes;
-          }
-        } else if (c === ',' && !inQuotes) {
-          row.push('');
-        } else if ((c === '\r' || c === '\n') && !inQuotes) {
+          if (inQuotes && next === '"') { row[row.length - 1] += '"'; i++; } else { inQuotes = !inQuotes; }
+        } else if (c === ',' && !inQuotes) { row.push(''); } 
+        else if ((c === '\r' || c === '\n') && !inQuotes) {
           if (c === '\r' && next === '\n') { i++; }
-          lines.push(row);
-          row = [''];
-        } else {
-          row[row.length - 1] += c;
-        }
+          lines.push(row); row = [''];
+        } else { row[row.length - 1] += c; }
       }
-      if (row.length > 1 || row[0] !== '') {
-        lines.push(row);
-      }
+      if (row.length > 1 || row[0] !== '') lines.push(row);
       return lines;
     };
 
     function App() {
-      // --- 報銷單總記錄 ---
+      // --- 狀態管理 ---
       const [records, setRecords] = useState(() => {
-        const saved = localStorage.getItem("expense_records_v2");
+        const saved = localStorage.getItem("expense_records_v3");
         return saved ? JSON.parse(saved) : [];
       });
+      const [employeeName, setEmployeeName] = useState(() => localStorage.getItem("expense_emp_name") || "");
+      const [employeeDept, setEmployeeDept] = useState(() => localStorage.getItem("expense_emp_dept") || "");
 
-      // --- 全域申報人基本資訊 ---
-      const [employeeName, setEmployeeName] = useState(() => {
-        return localStorage.getItem("expense_emp_name") || "";
-      });
-      const [employeeDept, setEmployeeDept] = useState(() => {
-        return localStorage.getItem("expense_emp_dept") || "";
-      });
-
-      useEffect(() => {
-        localStorage.setItem("expense_records_v2", JSON.stringify(records));
-      }, [records]);
-
-      useEffect(() => {
-        localStorage.setItem("expense_emp_name", employeeName);
-      }, [employeeName]);
-
-      useEffect(() => {
-        localStorage.setItem("expense_emp_dept", employeeDept);
-      }, [employeeDept]);
+      useEffect(() => { localStorage.setItem("expense_records_v3", JSON.stringify(records)); }, [records]);
+      useEffect(() => { localStorage.setItem("expense_emp_name", employeeName); }, [employeeName]);
+      useEffect(() => { localStorage.setItem("expense_emp_dept", employeeDept); }, [employeeDept]);
 
       // --- 每月 1 號申報提醒 ---
       useEffect(() => {
         const today = new Date();
         if (today.getDate() === 1) {
           const lastReminder = localStorage.getItem("expense_monthly_reminder");
-          const todayMonth = today.toISOString().slice(0, 7); // e.g. "2026-06"
+          const todayMonth = today.toISOString().slice(0, 7);
           if (lastReminder !== todayMonth) {
-            triggerAlert(`📅 溫馨提醒：今天是 ${today.getMonth() + 1} 月 1 日，請記得彙整並匯出上個月的報銷明細，以利後續請款作業！`);
+            triggerAlert(`📅 溫馨提醒：今天是 ${today.getMonth() + 1} 月 1 日，請記得彙整並匯出上個月的報銷明細！`);
             localStorage.setItem("expense_monthly_reminder", todayMonth);
           }
         }
       }, []);
 
-      // --- UI 控制狀態 ---
       const [showAddModal, setShowAddModal] = useState(false);
       const [showConfirmModal, setShowConfirmModal] = useState(false);
       const [showAlertModal, setShowAlertModal] = useState(false);
       const [showExportModal, setShowExportModal] = useState(false);
       const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-      const [showClearConfirmModal, setShowClearConfirmModal] = useState(false); // 新增：清除確認視窗狀態
+      const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
       const [alertMessage, setAlertMessage] = useState("");
       
-      // --- 影像上傳與檔案選擇相關 ---
       const [inputMethod, setInputMethod] = useState("");
       const [capturedImage, setCapturedImage] = useState(null);
       const [isOcrLoading, setIsOcrLoading] = useState(false);
 
       const ocrControllerRef = useRef(null);
-      const fileInputRef = useRef(null); // CSV 匯入 Ref
-      const fileLibraryRef = useRef(null); // 相簿/拍照
-      const fileDocRef = useRef(null); // 選擇檔案
+      const fileInputRef = useRef(null); 
+      const fileLibraryRef = useRef(null); 
+      const fileDocRef = useRef(null); 
 
-      // --- 行內編輯（Inline Row Edit）狀態 ---
       const [editingId, setEditingId] = useState(null);
       const [editRowData, setEditRowData] = useState(null);
-      const [duplicateIds, setDuplicateIds] = useState([]); // 用於匯出防呆
+      const [duplicateIds, setDuplicateIds] = useState([]);
 
-      // --- 當前編輯/核對中的草稿暫存區 ---
       const [currentRecord, setCurrentRecord] = useState({
         date: new Date().toISOString().split("T")[0],
-        form: "電子發票",
-        formCustom: "",
-        category: "交通費",
-        subCategory: "大眾運輸",
-        categoryCustom: "",
-        amount: "",
-        description: "",
-        companyTitle: "",
-        taxId: "",
-        startLocation: "茂生食品",
-        endLocation: "",
-        mileage: "",
-        subsidyAmount: ""
+        form: "電子發票", formCustom: "", category: "交通費", subCategory: "大眾運輸", categoryCustom: "",
+        amount: "", description: "", companyTitle: "", taxId: "", startLocation: "茂生食品", endLocation: "", mileage: "", subsidyAmount: ""
       });
 
-      // --- 統計指標 ---
       const totalAmount = records.reduce((sum, r) => sum + Number(r.amount || 0), 0);
       const categorySummary = records.reduce((acc, r) => {
         let label = r.category;
-        if (r.category === "交通費" && r.subCategory) {
-          label = `交通費-${r.subCategory}`;
-        } else if (r.category === "其他(手動輸入)" && r.categoryCustom) {
-          label = r.categoryCustom;
-        }
+        if (r.category === "交通費" && r.subCategory) label = `交通費-${r.subCategory}`;
+        else if (r.category === "其他(手動輸入)" && r.categoryCustom) label = r.categoryCustom;
         acc[label] = (acc[label] || 0) + Number(r.amount || 0);
         return acc;
       }, {});
 
-      // --- 自駕車補貼與里程稽核變更監聽 ---
+      // --- 智慧里程估算 ---
       const [calculatedDistance, setCalculatedDistance] = useState(0);
       const [mileageDifference, setMileageDifference] = useState(0);
 
@@ -290,21 +207,14 @@
         if (currentRecord.category === "差旅費油資補貼") {
           const mapDist = calculateMapDistance(currentRecord.startLocation, currentRecord.endLocation);
           setCalculatedDistance(mapDist);
-          
           if (currentRecord.mileage && mapDist > 0) {
-            const diffPct = Math.round((Math.abs(Number(currentRecord.mileage) - mapDist) / mapDist) * 1000) / 10;
-            setMileageDifference(diffPct);
+            setMileageDifference(Math.round((Math.abs(Number(currentRecord.mileage) - mapDist) / mapDist) * 1000) / 10);
           } else {
             setMileageDifference(0);
           }
-
           if (currentRecord.mileage) {
             const computedCost = Math.round(Number(currentRecord.mileage) * SUBSIDY_RATE);
-            setCurrentRecord(prev => ({ 
-              ...prev, 
-              subsidyAmount: computedCost,
-              amount: computedCost 
-            }));
+            setCurrentRecord(prev => ({ ...prev, subsidyAmount: computedCost, amount: computedCost }));
           }
         }
       }, [currentRecord.startLocation, currentRecord.endLocation, currentRecord.mileage, currentRecord.category]);
@@ -315,11 +225,9 @@
         }
       }, [currentRecord.subsidyAmount]);
 
-      // 智慧判斷里程警告規則
       const getMileageStatus = () => {
         if (!currentRecord.mileage || calculatedDistance <= 0) return null;
-        let threshold = 10;
-        let bracket = "";
+        let threshold = 10; let bracket = "";
         if (calculatedDistance <= 20) { threshold = 10; bracket = "20公里內 (容許 10%)"; }
         else if (calculatedDistance <= 50) { threshold = 20; bracket = "50公里內 (容許 20%)"; }
         else if (calculatedDistance <= 100) { threshold = 10; bracket = "100公里內 (容許 10%)"; }
@@ -327,7 +235,7 @@
         return { isOver: mileageDifference > threshold, threshold, bracket, diff: mileageDifference };
       };
 
-      // --- 原生拍照或檔案上傳選取處理 ---
+      // --- 檔案上傳與高精度 OCR ---
       const handleImageUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -336,24 +244,10 @@
             const dataUrl = event.target.result;
             setCapturedImage(dataUrl);
             setInputMethod("import");
-            
             setCurrentRecord({
-              date: new Date().toISOString().split("T")[0],
-              form: "電子發票",
-              formCustom: "",
-              category: "交通費",
-              subCategory: "大眾運輸",
-              categoryCustom: "",
-              amount: "",
-              description: "",
-              companyTitle: "",
-              taxId: "",
-              startLocation: "茂生食品",
-              endLocation: "",
-              mileage: "",
-              subsidyAmount: ""
+              date: "", form: "電子發票", formCustom: "", category: "交通費", subCategory: "大眾運輸", categoryCustom: "",
+              amount: "", description: "", companyTitle: "", taxId: "", startLocation: "茂生食品", endLocation: "", mileage: "", subsidyAmount: ""
             });
-            
             setShowAddModal(false);
             setShowConfirmModal(true);
             startBackgroundOCR(dataUrl);
@@ -363,24 +257,20 @@
         e.target.value = "";
       };
 
-      // --- 背景非阻塞 OCR 辨識流程 (升級支援單張/多張 A4 憑證同時辨識) ---
       const startBackgroundOCR = async (base64Image) => {
         if (ocrControllerRef.current) ocrControllerRef.current.abort();
         ocrControllerRef.current = new AbortController();
         setIsOcrLoading(true);
-        
         const base64Clean = base64Image.split(",")[1];
         
         try {
-          const apiKey = ""; // 執行時注入
+          const apiKey = ""; 
           const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-          
           let success = false;
           let parsedData = null;
           let delay = 1000;
 
-          // 最多嘗試 3 次退避重試
-          for (let i = 0; i < 3; i++) {
+          for (let i = 0; i < 5; i++) {
             try {
               const response = await fetch(apiURL, {
                 method: "POST",
@@ -391,42 +281,32 @@
                     parts: [
                       { 
                         text: `您是專業的台灣財務收支發票與車票辨識專家。
-                        圖片中可能包含「單張」或「多張貼在A4紙上的」憑證。請精確擷取圖片中「所有」憑證的文字資訊，並根據以下 JSON Array 格式回傳多筆辨識結果。
+                        圖片中可能包含「單張」或「多張」憑證。請精確擷取圖片中「所有」憑證的文字資訊，並根據以下 JSON Array 格式回傳。
                         
-                        重要抓取規則（請嚴格遵守）：
-                        1. date (憑證日期): 尋找票根、發票或收據上的「實際交易/乘車日期」 (格式 YYYY-MM-DD)。**絕對不可使用系統當前日期**。
-                        2. form (憑證形式): 根據憑證特徵精準分類。例如：高鐵/台鐵/捷運票請填「紙質車票」或「電子車票」，計程車收據請填「計程車乘車證明」。必須是: "電子發票"、"手寫發票"、"機打發票"、"紙質車票"、"電子車票"、"計程車乘車證明"、"電子收據"、"手寫收據"、"其他"。
-                        3. category (主科目): 必須是: "交通費"、"住宿費"、"膳雜費"、"餐飲費(交際費)"、"差旅費油資補貼"、"其他(手動輸入)" 之一。
-                        4. subCategory (副科目): 若 category 為交通費，請務必填入 "大眾運輸"、"計程車"、"ETC過路費"、"加油單"、"停車費" 之一。否則留空。
-                        5. amount (費用金額): 請精準尋找「NT$」、「總計金額」、「車資」、「合計」、「實付金額」、「TOTAL」後方的數字作為總金額 (整數)。忽略單項小計。
-                        6. description: 針對項目的簡短說明 (如: 高鐵車票 台北-左營)。
-                        7. companyTitle: 買受人/發票抬頭。無抬頭請留空。
-                        8. taxId: 統一編號。無統編請留空。`
+                        ⚠️ 絕對遵守以下超嚴格抓取規則：
+                        1. date (憑證日期): **必須尋找票面上的「實際交易日期、開立日期或乘車日期」 (格式 YYYY-MM-DD)。絕對嚴禁使用今天的日期！如果憑證上找不到明確日期，請回傳空字串 ""。**
+                        2. amount (費用金額): **請精準尋找「NT$」、「總計金額」、「車資」、「合計」、「實付」旁邊的最終數字作為總金額 (整數)。絕對要忽略單價或小計。**
+                        3. form (憑證形式): 根據憑證外觀精準分類。例如：高鐵/台鐵/捷運為「紙質車票」，計程車白單為「計程車乘車證明」。必須是: "電子發票"、"手寫發票"、"機打發票"、"紙質車票"、"電子車票"、"計程車乘車證明"、"電子收據"、"手寫收據"、"其他"。
+                        4. category (主科目): 必須是: "交通費"、"住宿費"、"膳雜費"、"餐飲費(交際費)"、"差旅費油資補貼"、"其他(手動輸入)" 之一。
+                        5. subCategory (副科目): 若為交通費，必須是 "大眾運輸"、"計程車"、"ETC過路費"、"加油單"、"停車費" 之一。
+                        6. description: 簡短說明 (如: 高鐵車票 台北-左營，或 計程車費)。
+                        7. companyTitle: 買受人/發票抬頭。無則留空。
+                        8. taxId: 統一編號。無則留空。`
                       },
-                      {
-                        inlineData: {
-                          mimeType: "image/jpeg",
-                          data: base64Clean
-                        }
-                      }
+                      { inlineData: { mimeType: "image/jpeg", data: base64Clean } }
                     ]
                   }],
                   generationConfig: {
                     responseMimeType: "application/json",
                     responseSchema: {
                       type: "ARRAY",
-                      description: "圖片中所有的發票、車票或收據。若有多張，請回傳多個物件。",
+                      description: "圖片中所有的憑證陣列。",
                       items: {
                         type: "OBJECT",
                         properties: {
-                          date: { type: "STRING" },
-                          form: { type: "STRING" },
-                          category: { type: "STRING" },
-                          subCategory: { type: "STRING" },
-                          amount: { type: "INTEGER" },
-                          description: { type: "STRING" },
-                          companyTitle: { type: "STRING" },
-                          taxId: { type: "STRING" }
+                          date: { type: "STRING" }, form: { type: "STRING" }, category: { type: "STRING" },
+                          subCategory: { type: "STRING" }, amount: { type: "INTEGER" }, description: { type: "STRING" },
+                          companyTitle: { type: "STRING" }, taxId: { type: "STRING" }
                         },
                         required: ["date", "form", "category", "amount", "description", "companyTitle", "taxId"]
                       }
@@ -437,10 +317,8 @@
 
               if (response.ok) {
                 const result = await response.json();
-                const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                parsedData = JSON.parse(jsonText);
-                success = true;
-                break;
+                parsedData = JSON.parse(result.candidates[0].content.parts[0].text);
+                success = true; break;
               }
             } catch (err) {
               if (err.name === 'AbortError') return;
@@ -451,11 +329,10 @@
 
           if (success && parsedData && Array.isArray(parsedData) && parsedData.length > 0) {
             if (parsedData.length === 1) {
-              // 單張憑證：直接回填當前畫面
               const item = parsedData[0];
               setCurrentRecord(prev => ({
                 ...prev,
-                date: item.date || prev.date,
+                date: item.date || prev.date || new Date().toISOString().split("T")[0],
                 form: CERTIFICATE_FORMS.includes(item.form) ? item.form : prev.form,
                 formCustom: CERTIFICATE_FORMS.includes(item.form) ? "" : item.form,
                 category: MAIN_SUBJECTS.includes(item.category) ? item.category : prev.category,
@@ -467,7 +344,6 @@
                 taxId: item.taxId || prev.taxId
               }));
             } else {
-              // 多張憑證 (例如 A4 上貼了多張)：自動批次加入表格
               const newRecords = parsedData.map((item, idx) => ({
                 id: Date.now() + idx,
                 employeeName: employeeName || "未填寫",
@@ -479,32 +355,14 @@
                 categoryCustom: MAIN_SUBJECTS.includes(item.category) ? "" : item.category,
                 subCategory: item.subCategory || "",
                 amount: item.amount || 0,
-                description: item.description || "A4多張憑證自動辨識",
-                companyTitle: item.companyTitle || "",
-                taxId: item.taxId || "",
-                startLocation: "",
-                endLocation: "",
-                mileage: "",
-                subsidyAmount: ""
+                description: item.description || "自動辨識批次匯入",
+                companyTitle: item.companyTitle || "", taxId: item.taxId || "",
+                startLocation: "", endLocation: "", mileage: "", subsidyAmount: ""
               }));
               setRecords(prev => [...newRecords, ...prev]);
               setShowConfirmModal(false);
-              triggerAlert(`✅ 成功在圖片中同步辨識出 ${parsedData.length} 張憑證！\n已全數自動加入下方明細表，請直接在表格中點選「編輯」進行最後確認。`);
+              triggerAlert(`✅ 成功同時辨識出 ${parsedData.length} 張憑證！\n已全數加入下方明細表，請於表格中確認。`);
             }
-          } else {
-            // API 連線失敗或無法精確解析時，退回基本模擬回填
-            const rand = Math.random();
-            let mockTitle = "茂生食品股份有限公司";
-            let mockTaxId = "85099593";
-            if (rand < 0.3) { mockTitle = "個人憑證"; mockTaxId = ""; }
-
-            setCurrentRecord(prev => ({
-              ...prev,
-              amount: prev.amount === "" ? (Math.floor(Math.random() * 1200) + 150) : prev.amount,
-              description: prev.description === "" ? "公務出差費用 (需手動校正)" : prev.description,
-              companyTitle: prev.companyTitle === "" ? mockTitle : prev.companyTitle,
-              taxId: prev.taxId === "" ? mockTaxId : prev.taxId
-            }));
           }
         } catch (e) {
           if (e.name === 'AbortError') return;
@@ -512,114 +370,56 @@
         setIsOcrLoading(false);
       };
 
-      const cancelOcr = () => {
-        if (ocrControllerRef.current) ocrControllerRef.current.abort();
-        setIsOcrLoading(false);
-      };
+      const cancelOcr = () => { if (ocrControllerRef.current) ocrControllerRef.current.abort(); setIsOcrLoading(false); };
 
-      // --- 差旅費油資補貼手動輸入模式 ---
       const startManualInput = () => {
-        setCapturedImage(null);
-        setInputMethod("manual");
-        setIsOcrLoading(false);
+        setCapturedImage(null); setInputMethod("manual"); setIsOcrLoading(false);
         setCurrentRecord({
-          date: new Date().toISOString().split("T")[0],
-          form: "電子發票",
-          formCustom: "",
-          category: "差旅費油資補貼",
-          subCategory: "",
-          categoryCustom: "",
-          amount: "",
-          description: "",
-          companyTitle: "茂生食品股份有限公司",
-          taxId: "",
-          startLocation: "茂生食品",
-          endLocation: "",
-          mileage: "",
-          subsidyAmount: ""
+          date: new Date().toISOString().split("T")[0], form: "電子發票", formCustom: "", category: "差旅費油資補貼", subCategory: "", categoryCustom: "",
+          amount: "", description: "", companyTitle: "茂生食品股份有限公司", taxId: "", startLocation: "茂生食品", endLocation: "", mileage: "", subsidyAmount: ""
         });
-        setShowAddModal(false);
-        setShowConfirmModal(true);
+        setShowAddModal(false); setShowConfirmModal(true);
       };
 
-      // --- 確認儲存主流程 ---
       const handleConfirmSave = () => {
-        if (!employeeName.trim() || !employeeDept.trim()) {
-          triggerAlert("請先在首頁填寫「員工姓名」與「部門」資訊！");
-          return;
-        }
-
-        cancelOcr(); // 儲存時自動中斷未完成的背景辨識
-
+        if (!employeeName.trim() || !employeeDept.trim()) { triggerAlert("請先在首頁填寫「員工姓名」與「部門」！"); return; }
+        cancelOcr();
         const isTicketExempt = currentRecord.form.includes("車票") || currentRecord.form === "計程車乘車證明";
-        const cleanTitle = currentRecord.companyTitle.trim();
-        const cleanTaxId = currentRecord.taxId.trim();
-
+        
         if (!isTicketExempt) {
-          const isTitleValid = cleanTitle === TARGET_COMPANY;
-          const isTaxIdValid = cleanTaxId === TARGET_TAX_ID;
-
-          if (!isTitleValid && !isTaxIdValid) {
-            triggerAlert(`【憑證不合規警告】\n發票抬頭或統一編號需擇一符合，方可申報：\n\n・合規抬頭需為：「${TARGET_COMPANY}」\n・合規統編需為：「${TARGET_TAX_ID}」\n\n目前輸入不符，請重新修正。\n(若為交通車票或計程車收據，請變更憑證形式)`);
-            return;
+          if (currentRecord.companyTitle.trim() !== TARGET_COMPANY && currentRecord.taxId.trim() !== TARGET_TAX_ID) {
+            triggerAlert(`【合規警告】抬頭需為「${TARGET_COMPANY}」或統編需為「${TARGET_TAX_ID}」擇一符合。`); return;
           }
         }
 
         if (currentRecord.category === "差旅費油資補貼") {
-          if (!currentRecord.startLocation || !currentRecord.endLocation) {
-            triggerAlert("「差旅費油資補貼」必須輸入起始地點與結束地點。");
-            return;
-          }
-          if (!currentRecord.mileage || isNaN(currentRecord.mileage) || Number(currentRecord.mileage) <= 0) {
-            triggerAlert("請輸入正確的實際申報里程。");
-            return;
-          }
+          if (!currentRecord.startLocation || !currentRecord.endLocation || !currentRecord.mileage) { triggerAlert("自駕補貼需填寫起迄點與里程。"); return; }
         } else {
-          if (!currentRecord.amount || isNaN(currentRecord.amount) || Number(currentRecord.amount) <= 0) {
-            triggerAlert("請輸入大於 0 的正確金額。");
-            return;
-          }
+          if (!currentRecord.amount || isNaN(currentRecord.amount) || Number(currentRecord.amount) <= 0) { triggerAlert("請輸入正確金額。"); return; }
         }
 
-        const newRecord = {
-          ...currentRecord,
-          id: Date.now(),
-          employeeName: employeeName.trim(),
-          employeeDept: employeeDept.trim(),
-          amount: Number(currentRecord.amount)
-        };
-
+        const newRecord = { ...currentRecord, id: Date.now(), employeeName: employeeName.trim(), employeeDept: employeeDept.trim(), amount: Number(currentRecord.amount) };
         setRecords([newRecord, ...records]);
-        setShowConfirmModal(false);
-        setCapturedImage(null);
-        setInputMethod("");
+        setShowConfirmModal(false); setCapturedImage(null); setInputMethod("");
       };
 
-      // --- 刪除紀錄 ---
       const handleDeleteRecord = (id) => {
         setRecords(records.filter(r => r.id !== id));
-        if (editingId === id) {
-          setEditingId(null);
-          setEditRowData(null);
-        }
+        if (editingId === id) { setEditingId(null); setEditRowData(null); }
+      };
+      
+      const confirmClearRecords = () => {
+        setRecords([]); setShowClearConfirmModal(false); triggerAlert("✅ 歷史憑證明細已一鍵清除完畢。");
       };
 
-      // --- 行內編輯 (Inline Editing) ---
-      const startInlineEdit = (record) => {
-        setEditingId(record.id);
-        setEditRowData({ ...record });
-      };
-
+      const startInlineEdit = (record) => { setEditingId(record.id); setEditRowData({ ...record }); };
       const handleEditFieldChange = (field, val) => {
         setEditRowData(prev => {
           const updated = { ...prev, [field]: val };
-          if (updated.category === "差旅費油資補貼") {
-            if (field === "startLocation" || field === "endLocation" || field === "mileage") {
-              if (updated.mileage) {
-                const computedCost = Math.round(Number(updated.mileage) * SUBSIDY_RATE);
-                updated.subsidyAmount = computedCost;
-                updated.amount = computedCost;
-              }
+          if (updated.category === "差旅費油資補貼" && ["startLocation", "endLocation", "mileage"].includes(field)) {
+            if (updated.mileage) {
+              const cost = Math.round(Number(updated.mileage) * SUBSIDY_RATE);
+              updated.subsidyAmount = cost; updated.amount = cost;
             }
           }
           return updated;
@@ -627,50 +427,21 @@
       };
 
       const saveInlineEdit = () => {
-        if (!editRowData.employeeName.trim() || !editRowData.employeeDept.trim()) {
-          triggerAlert("「姓名」與「部門」欄位不得為空！");
-          return;
-        }
-
+        if (!editRowData.employeeName.trim() || !editRowData.employeeDept.trim()) { triggerAlert("姓名與部門不得為空！"); return; }
         const isTicketExempt = editRowData.form.includes("車票") || editRowData.form === "計程車乘車證明";
-        const cleanTitle = editRowData.companyTitle.trim();
-        const cleanTaxId = editRowData.taxId.trim();
-
-        if (!isTicketExempt) {
-          const isTitleValid = cleanTitle === TARGET_COMPANY;
-          const isTaxIdValid = cleanTaxId === TARGET_TAX_ID;
-          if (!isTitleValid && !isTaxIdValid) {
-            triggerAlert(`【編輯儲存失敗】\n抬頭或統編需擇一符合：\n抬頭：「${TARGET_COMPANY}」或 統編：「${TARGET_TAX_ID}」。`);
-            return;
-          }
+        if (!isTicketExempt && editRowData.companyTitle.trim() !== TARGET_COMPANY && editRowData.taxId.trim() !== TARGET_TAX_ID) {
+          triggerAlert(`【儲存失敗】抬頭或統編需擇一符合。`); return;
         }
-
-        if (editRowData.category === "差旅費油資補貼") {
-          if (!editRowData.startLocation || !editRowData.endLocation || !editRowData.mileage || isNaN(editRowData.mileage) || Number(editRowData.mileage) <= 0) {
-            triggerAlert("「差旅費油資補貼」必須有起迄地點與正確里程。");
-            return;
-          }
-        } else {
-          if (!editRowData.amount || isNaN(editRowData.amount) || Number(editRowData.amount) <= 0) {
-            triggerAlert("請輸入正確大於 0 的費用金額。");
-            return;
-          }
+        if (editRowData.category === "差旅費油資補貼" && (!editRowData.startLocation || !editRowData.endLocation || !editRowData.mileage)) {
+          triggerAlert("自駕補貼必須有起迄地點與正確里程。"); return;
         }
-
         setRecords(records.map(r => r.id === editingId ? { ...editRowData, amount: Number(editRowData.amount) } : r));
-        setEditingId(null);
-        setEditRowData(null);
+        setEditingId(null); setEditRowData(null);
       };
+      const cancelInlineEdit = () => { setEditingId(null); setEditRowData(null); };
 
-      const cancelInlineEdit = () => {
-        setEditingId(null);
-        setEditRowData(null);
-      };
-
-      // --- CSV 處理與匯出防呆邏輯 ---
       const generateCSVContent = (recordsToExport) => {
-        let csvContent = "\uFEFF"; 
-        csvContent += "姓名,部門,憑證日期,憑證形式,會計科目,副科目,費用金額,發票抬頭,統一編號,起始地點,結束地點,行駛里程(km),油資補貼,說明\n";
+        let csvContent = "\uFEFF姓名,部門,憑證日期,憑證形式,會計科目,副科目,費用金額,發票抬頭,統一編號,起始地點,結束地點,行駛里程(km),油資補貼,說明\n";
         recordsToExport.forEach(r => {
           const formText = r.form === "其他" ? r.formCustom : r.form;
           const catText = r.category === "其他(手動輸入)" ? r.categoryCustom : r.category;
@@ -682,82 +453,34 @@
 
       const handleExportClick = () => {
         if (records.length === 0) { triggerAlert("目前無明細可供匯出。"); return; }
-        
-        // 尋找重複項目 (依據 日期+金額+科目+統編 判斷)
-        const seen = new Set();
-        const dups = [];
+        const seen = new Set(); const dups = [];
         records.forEach(r => {
           const key = `${r.date}_${r.amount}_${r.category}_${r.taxId}`;
-          if (seen.has(key)) {
-            dups.push(r.id);
-          } else {
-            seen.add(key);
-          }
+          if (seen.has(key)) dups.push(r.id); else seen.add(key);
         });
-
-        if (dups.length > 0) {
-          setDuplicateIds(dups);
-          setShowDuplicateModal(true);
-        } else {
-          setShowExportModal(true);
-        }
+        if (dups.length > 0) { setDuplicateIds(dups); setShowDuplicateModal(true); } else { setShowExportModal(true); }
       };
 
-      const removeDuplicatesAndExport = () => {
-        const filtered = records.filter(r => !duplicateIds.includes(r.id));
-        setRecords(filtered);
-        setShowDuplicateModal(false);
-        // 短暫延遲確保留存狀態後再顯示匯出選單
-        setTimeout(() => setShowExportModal(true), 100);
-      };
-
-      const ignoreDuplicatesAndExport = () => {
-        setShowDuplicateModal(false);
-        setShowExportModal(true);
-      };
+      const removeDuplicatesAndExport = () => { setRecords(records.filter(r => !duplicateIds.includes(r.id))); setShowDuplicateModal(false); setTimeout(() => setShowExportModal(true), 100); };
+      const ignoreDuplicatesAndExport = () => { setShowDuplicateModal(false); setShowExportModal(true); };
 
       const handleSaveLocal = () => {
-        if (records.length === 0) return;
-        const csvContent = generateCSVContent(records);
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `費用報銷彙整表_${new Date().toISOString().split("T")[0]}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setShowExportModal(false);
+        const blob = new Blob([generateCSVContent(records)], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob); const link = document.createElement("a");
+        link.href = url; link.download = `費用報銷彙整表_${new Date().toISOString().split("T")[0]}.csv`;
+        document.body.appendChild(link); link.click(); document.body.removeChild(link); setShowExportModal(false);
       };
 
       const handleSystemShare = async () => {
-        if (records.length === 0) return;
-        const csvContent = generateCSVContent(records);
         const filename = `費用報銷彙整表_${new Date().toISOString().split("T")[0]}.csv`;
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const blob = new Blob([generateCSVContent(records)], { type: "text/csv;charset=utf-8;" });
         if (navigator.canShare && navigator.share) {
           try {
             const file = new File([blob], filename, { type: "text/csv" });
-            if (navigator.canShare({ files: [file] })) {
-              await navigator.share({ files: [file], title: "費用報銷彙整表", text: "請查收匯出之費用報銷彙整表 CSV 檔案。" });
-              setShowExportModal(false);
-            } else {
-              handleSaveLocal();
-            }
-          } catch (err) {
-            if (err.name !== "AbortError") handleSaveLocal();
-          }
-        } else {
-          handleSaveLocal();
-        }
-      };
-
-      // --- 寬容 CSV 匯入 ---
-      const findFuzzyIndex = (header, keywords) => {
-        return header.findIndex(h => {
-          const clean = h.trim().toLowerCase().replace(/^\uFEFF/, '');
-          return keywords.some(kw => clean.includes(kw));
-        });
+            if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "費用報銷彙整表" }); setShowExportModal(false); } 
+            else handleSaveLocal();
+          } catch (err) { if (err.name !== "AbortError") handleSaveLocal(); }
+        } else { handleSaveLocal(); }
       };
 
       const handleCSVImport = (e) => {
@@ -766,337 +489,151 @@
         const reader = new FileReader();
         reader.onload = (event) => {
           try {
-            const arrayBuffer = event.target.result;
-            const uint8Array = new Uint8Array(arrayBuffer);
+            const uint8Array = new Uint8Array(event.target.result);
             let encoding = 'utf-8';
-            try {
-              const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
-              utf8Decoder.decode(uint8Array);
-            } catch (err) {
-              encoding = 'big5';
-            }
-            const decoder = new TextDecoder(encoding);
-            const text = decoder.decode(uint8Array);
-            const rows = parseCSV(text);
+            try { new TextDecoder('utf-8', { fatal: true }).decode(uint8Array); } catch { encoding = 'big5'; }
+            const rows = parseCSV(new TextDecoder(encoding).decode(uint8Array));
             if (rows.length === 0) return;
-
-            const header = rows[0];
-            const hasHeader = header.some(h => isNaN(h) && h.length > 0);
+            const header = rows[0]; const hasHeader = header.some(h => isNaN(h) && h.length > 0);
             
-            const nameIdx = findFuzzyIndex(header, ["姓名", "員工", "申報", "name"]);
-            const deptIdx = findFuzzyIndex(header, ["部門", "單位", "課室", "dept"]);
-            const dateIdx = findFuzzyIndex(header, ["憑證日期", "日期", "時間", "date"]);
-            const formIdx = findFuzzyIndex(header, ["憑證形式", "形式", "種類", "type"]);
-            const catIdx = findFuzzyIndex(header, ["會計科目", "科目", "category", "主選項"]);
-            const subCatIdx = findFuzzyIndex(header, ["副科目", "副分類", "子選項"]);
-            const amountIdx = findFuzzyIndex(header, ["費用金額", "金額", "費用", "amount"]);
-            const titleIdx = findFuzzyIndex(header, ["發票抬頭", "抬頭", "買受人", "title"]);
-            const taxIdx = findFuzzyIndex(header, ["統一編號", "統編", "編號", "tax"]);
-            const startIdx = findFuzzyIndex(header, ["起始地點", "起點", "出發地", "start"]);
-            const endIdx = findFuzzyIndex(header, ["結束地點", "迄點", "目的地", "end"]);
-            const mileageIdx = findFuzzyIndex(header, ["行駛里程", "里程", "mileage"]);
-            const subsidyIdx = findFuzzyIndex(header, ["油資補貼", "補貼額"]);
-            const descIdx = findFuzzyIndex(header, ["說明", "備註", "事由", "desc"]);
+            const findIdx = (kws) => header.findIndex(h => kws.some(kw => h.trim().toLowerCase().replace(/^\uFEFF/, '').includes(kw)));
+            const idxs = {
+              name: findIdx(["姓名", "員工"]), dept: findIdx(["部門", "單位"]), date: findIdx(["憑證日期", "日期"]), form: findIdx(["憑證形式", "形式"]),
+              cat: findIdx(["會計科目", "科目"]), subCat: findIdx(["副科目"]), amt: findIdx(["費用金額", "金額"]), title: findIdx(["發票抬頭", "抬頭"]),
+              tax: findIdx(["統一編號", "統編"]), start: findIdx(["起始地點", "起點"]), end: findIdx(["結束地點", "迄點"]), mileage: findIdx(["行駛里程", "里程"]),
+              subAmt: findIdx(["油資補貼"]), desc: findIdx(["說明", "備註"])
+            };
 
             const importedRecords = [];
-            const startRowIdx = hasHeader ? 1 : 0;
-
-            for (let i = startRowIdx; i < rows.length; i++) {
-              const row = rows[i];
-              if (row.length === 0 || (row.length === 1 && row[0] === "")) continue;
-
-              const empName = nameIdx !== -1 ? (row[nameIdx] || "") : (row[0] || employeeName || "未命名");
-              const empDept = deptIdx !== -1 ? (row[deptIdx] || "") : (row[1] || employeeDept || "未填部門");
-              const pDate = dateIdx !== -1 ? (row[dateIdx] || "") : (row[2] || new Date().toISOString().split("T")[0]);
-              const rawForm = formIdx !== -1 ? (row[formIdx] || "") : (row[3] || "電子發票");
-              const rawCat = catIdx !== -1 ? (row[catIdx] || "") : (row[4] || "交通費");
-              const subCategory = subCatIdx !== -1 ? (row[subCatIdx] || "") : (row[5] || "");
+            for (let i = hasHeader ? 1 : 0; i < rows.length; i++) {
+              const row = rows[i]; if (row.length <= 1 && !row[0]) continue;
+              const val = (idx, fallback) => idx !== -1 ? (row[idx] || fallback) : fallback;
+              const amountStr = idxs.amt !== -1 ? row[idxs.amt] : (row.find(v => !isNaN(v) && v !== "" && Number(v) > 0) || "0");
               
-              let amountStr = "0";
-              if (amountIdx !== -1) {
-                amountStr = row[amountIdx];
-              } else {
-                const numericCol = row.find(val => !isNaN(val) && val !== "" && Number(val) > 0);
-                if (numericCol) amountStr = numericCol;
-              }
-              const amount = Number(amountStr) || 0;
-
-              const companyTitle = titleIdx !== -1 ? (row[titleIdx] || "") : (row[7] || "");
-              const taxId = taxIdx !== -1 ? (row[taxIdx] || "") : (row[8] || "");
-              const startLocation = startIdx !== -1 ? (row[startIdx] || "") : "茂生食品";
-              const endLocation = endIdx !== -1 ? (row[endIdx] || "") : "";
-              const mileage = mileageIdx !== -1 ? (row[mileageIdx] || "") : "";
-              const subsidyAmount = subsidyIdx !== -1 ? (row[subsidyIdx] ? Number(row[subsidyIdx]) : "") : "";
-              const description = descIdx !== -1 ? (row[descIdx] || "") : (row[row.length - 1] || "");
-
-              let form = rawForm; let formCustom = "";
-              if (!CERTIFICATE_FORMS.includes(rawForm)) { form = "其他"; formCustom = rawForm; }
-              let category = rawCat; let categoryCustom = "";
-              if (!MAIN_SUBJECTS.includes(rawCat)) { category = "其他(手動輸入)"; categoryCustom = rawCat; }
+              let form = val(idxs.form, row[3] || "電子發票"); let formCustom = ""; if (!CERTIFICATE_FORMS.includes(form)) { formCustom = form; form = "其他"; }
+              let category = val(idxs.cat, row[4] || "交通費"); let categoryCustom = ""; if (!MAIN_SUBJECTS.includes(category)) { categoryCustom = category; category = "其他(手動輸入)"; }
 
               importedRecords.push({
                 id: Date.now() + i + Math.random(),
-                employeeName: empName, employeeDept: empDept, date: pDate,
-                form, formCustom, category, categoryCustom, subCategory, amount,
-                companyTitle, taxId, startLocation, endLocation, mileage, subsidyAmount, description
+                employeeName: val(idxs.name, row[0] || employeeName || "未命名"), employeeDept: val(idxs.dept, row[1] || employeeDept || "未填部門"),
+                date: val(idxs.date, row[2] || new Date().toISOString().split("T")[0]), form, formCustom, category, categoryCustom, subCategory: val(idxs.subCat, row[5] || ""),
+                amount: Number(amountStr) || 0, companyTitle: val(idxs.title, row[7] || ""), taxId: val(idxs.tax, row[8] || ""),
+                startLocation: val(idxs.start, "茂生食品"), endLocation: val(idxs.end, ""), mileage: val(idxs.mileage, ""),
+                subsidyAmount: idxs.subAmt !== -1 ? (row[idxs.subAmt] ? Number(row[idxs.subAmt]) : "") : "", description: val(idxs.desc, row[row.length - 1] || "")
               });
             }
 
             if (importedRecords.length > 0) {
-              // 匯入防呆：比對本機現有明細，自動剔除重複項目
               const existingKeys = new Set(records.map(r => `${r.date}_${r.amount}_${r.category}_${r.taxId}`));
-              const newRecords = [];
-              let duplicateCount = 0;
-
+              const newRecords = []; let duplicateCount = 0;
               importedRecords.forEach(r => {
                 const key = `${r.date}_${r.amount}_${r.category}_${r.taxId}`;
-                if (existingKeys.has(key)) {
-                  duplicateCount++;
-                } else {
-                  existingKeys.add(key); // 將新項目加入 Set，同時防止匯入檔案本身內部的重複
-                  newRecords.push(r);
-                }
+                if (existingKeys.has(key)) duplicateCount++; else { existingKeys.add(key); newRecords.push(r); }
               });
 
               if (newRecords.length > 0) {
                 setRecords(prev => [...newRecords, ...prev]);
                 if (newRecords[0].employeeName) setEmployeeName(newRecords[0].employeeName);
                 if (newRecords[0].employeeDept) setEmployeeDept(newRecords[0].employeeDept);
-                
-                let msg = `✅ 成功智慧解析並匯入 ${newRecords.length} 筆新報銷明細！`;
-                if (duplicateCount > 0) {
-                  msg += `\n\n⚠️ 系統比對發現有 ${duplicateCount} 筆憑證與本機現存資料重複，已自動為您剔除，防止重複報帳。`;
-                }
-                triggerAlert(msg);
+                triggerAlert(`✅ 成功匯入 ${newRecords.length} 筆明細！${duplicateCount > 0 ? `\n⚠️ 已剔除 ${duplicateCount} 筆重複項目。` : ''}`);
               } else {
-                if (duplicateCount > 0) {
-                  triggerAlert(`⚠️ 匯入的 ${duplicateCount} 筆資料皆與本機現存明細完全重複，已全數忽略，不作匯入。`);
-                } else {
-                  triggerAlert("匯入檔案解析成功，但無有效明細可匯入。");
-                }
+                triggerAlert(`⚠️ 匯入的資料 (${duplicateCount}筆) 與本機現存完全重複，已全數忽略。`);
               }
             }
-          } catch (err) {
-            triggerAlert("匯入檔案解析失敗，請確認是否為可讀取的 CSV 檔案。");
-          }
+          } catch (err) { triggerAlert("匯入解析失敗，請確認檔案格式。"); }
         };
-        reader.readAsArrayBuffer(file);
-        e.target.value = "";
+        reader.readAsArrayBuffer(file); e.target.value = "";
       };
 
-      const confirmClearRecords = () => {
-        setRecords([]);
-        setShowClearConfirmModal(false);
-        triggerAlert("✅ 歷史憑證明細已一鍵清除完畢。");
-      };
-
-      const triggerAlert = (msg) => {
-        setAlertMessage(msg);
-        setShowAlertModal(true);
-      };
-
-      const isTicketRelated = currentRecord.form.includes("車票") || currentRecord.form === "計程車乘車證明";
+      const triggerAlert = (msg) => { setAlertMessage(msg); setShowAlertModal(true); };
 
       return (
         <div class="w-full max-w-7xl mx-auto p-4 md:p-6 pb-24">
-          
           <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 bg-slate-900 text-white p-5 rounded-2xl shadow-lg">
             <div>
-              <span class="text-xs bg-indigo-600 text-indigo-100 font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider">
-                茂生食品股份有限公司
-              </span>
+              <span class="text-xs bg-indigo-600 text-indigo-100 font-semibold px-2.5 py-1 rounded-full uppercase">茂生食品股份有限公司</span>
               <h1 class="text-2xl font-bold mt-2">費用報銷彙整表</h1>
-              <p class="text-slate-400 text-xs mt-1">全體員工通用・支援 A4 多憑證同時辨識與防重複匯出</p>
+              <p class="text-slate-400 text-xs mt-1">全體員工通用・支援 A4 多憑證同時高精度辨識</p>
             </div>
-            <div class="mt-4 sm:mt-0">
-              <span class="bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg text-sm border border-slate-700 font-mono">
-                系統版本：{VERSION}
-              </span>
-            </div>
+            <div class="mt-4 sm:mt-0"><span class="bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg text-sm border border-slate-700 font-mono">系統版本：{VERSION}</span></div>
           </header>
 
           <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-6">
-            <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center">
-              <span class="mr-1.5">👤</span> 申報人基本資訊
-            </h3>
+            <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center"><span class="mr-1.5">👤</span> 申報人基本資訊</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-semibold text-slate-500 mb-1">員工姓名 <span class="text-rose-500">*</span></label>
-                <input type="text" placeholder="請輸入姓名" value={employeeName} onChange={(e) => setEmployeeName(e.target.value)} class="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl px-3 py-2 text-sm outline-none" />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-500 mb-1">申報部門 <span class="text-rose-500">*</span></label>
-                <input type="text" placeholder="請輸入部門" value={employeeDept} onChange={(e) => setEmployeeDept(e.target.value)} class="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl px-3 py-2 text-sm outline-none" />
-              </div>
+              <div><label class="block text-xs font-semibold text-slate-500 mb-1">員工姓名 <span class="text-rose-500">*</span></label><input type="text" value={employeeName} onChange={(e) => setEmployeeName(e.target.value)} class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" /></div>
+              <div><label class="block text-xs font-semibold text-slate-500 mb-1">申報部門 <span class="text-rose-500">*</span></label><input type="text" value={employeeDept} onChange={(e) => setEmployeeDept(e.target.value)} class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" /></div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+              <span class="text-slate-500 text-sm font-medium">申報總累計金額</span>
+              <div class="flex items-baseline space-x-2 mt-2"><span class="text-3xl font-extrabold text-indigo-600">NT$ {totalAmount.toLocaleString()}</span><span class="text-slate-400 text-xs">元</span></div>
+              <div class="mt-3 text-xs text-slate-400 border-t pt-2">總計筆數: {records.length} 筆</div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 md:col-span-2">
+              <div class="flex justify-between items-center mb-3"><span class="text-slate-500 text-sm font-medium">科目核銷統計</span></div>
+              {Object.keys(categorySummary).length === 0 ? <div class="text-slate-400 text-sm py-4 text-center">暫無申報數據。</div> : (
+                <div class="grid grid-cols-2 gap-x-4 gap-y-2 font-mono text-xs">
+                  {Object.entries(categorySummary).map(([cat, val]) => (
+                    <div key={cat} class="flex items-center justify-between py-1 border-b border-dashed border-slate-100"><span class="text-slate-600 truncate max-w-[120px]">{cat}</span><span class="font-bold text-slate-900">NT$ {val.toLocaleString()}</span></div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
           <div class="flex flex-col sm:flex-row flex-wrap gap-3 mb-6">
-            <button 
-              onClick={() => {
-                if (!employeeName.trim() || !employeeDept.trim()) {
-                  triggerAlert("請先在首頁填寫「員工姓名」與「部門」！");
-                  return;
-                }
-                setShowAddModal(true);
-              }}
-              class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 animate-pulse-light"
-            >
-              <IconPlus /><span>新增報銷憑證</span>
-            </button>
-            <button 
-              onClick={() => fileInputRef.current.click()}
-              class="bg-slate-700 hover:bg-slate-800 text-white font-semibold py-3 px-5 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2"
-            >
-              <IconFolderOpen /><span>📂 匯入歷史報銷檔案</span>
-            </button>
+            <button onClick={() => { if (!employeeName.trim() || !employeeDept.trim()) { triggerAlert("請先填寫「員工姓名」與「部門」！"); return; } setShowAddModal(true); }} class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl shadow transition-all flex items-center justify-center space-x-2 animate-pulse-light"><IconPlus /><span>新增報銷憑證</span></button>
+            <button onClick={() => fileInputRef.current.click()} class="bg-slate-700 hover:bg-slate-800 text-white font-semibold py-3 px-5 rounded-xl shadow flex items-center justify-center space-x-2"><IconFolderOpen /><span>📂 匯入歷史報銷檔案</span></button>
             <input type="file" ref={fileInputRef} accept=".csv,.txt" class="hidden" onChange={handleCSVImport} />
-            <button 
-              onClick={handleExportClick}
-              class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2"
-            >
-              <IconDownload /><span>彙整匯出 CSV 報表</span>
-            </button>
-            <button 
-              onClick={() => {
-                if (records.length === 0) {
-                  triggerAlert("目前沒有憑證明細可以清除。");
-                  return;
-                }
-                setShowClearConfirmModal(true);
-              }}
-              class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold py-3 px-5 rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2 border border-rose-200"
-            >
-              <IconTrash /><span>清除憑證明細</span>
-            </button>
+            <button onClick={handleExportClick} class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-xl shadow flex items-center justify-center space-x-2"><IconDownload /><span>彙整匯出 CSV 報表</span></button>
+            <button onClick={() => { if (records.length === 0) { triggerAlert("目前沒有憑證可以清除。"); return; } setShowClearConfirmModal(true); }} class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold py-3 px-5 rounded-xl border border-rose-200 flex items-center justify-center space-x-2"><IconTrash /><span>清除憑證明細</span></button>
           </div>
 
           <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h2 class="font-bold text-slate-800 text-lg">憑證報銷明細</h2>
-              <span class="text-xs text-slate-500">提示：表格可直接內聯編輯</span>
-            </div>
-
-            {records.length === 0 ? (
-              <div class="p-12 text-center text-slate-400">
-                <svg class="w-16 h-16 mx-auto mb-4 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
-                <p class="font-medium">尚未添加任何報銷憑證</p>
-              </div>
-            ) : (
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50"><h2 class="font-bold text-slate-800 text-lg">憑證報銷明細</h2></div>
+            {records.length === 0 ? <div class="p-12 text-center text-slate-400">尚未添加任何報銷憑證</div> : (
               <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                   <thead>
-                    <tr class="bg-slate-100/50 text-slate-500 text-xs uppercase font-semibold border-b border-slate-100">
-                      <th class="py-3.5 px-4">申報人</th>
-                      <th class="py-3.5 px-4">憑證日期</th>
-                      <th class="py-3.5 px-4">憑證形式</th>
-                      <th class="py-3.5 px-4">科目</th>
-                      <th class="py-3.5 px-4 text-right">費用金額</th>
-                      <th class="py-3.5 px-4">抬頭 / 統編</th>
-                      <th class="py-3.5 px-4">差旅路線與里程</th>
-                      <th class="py-3.5 px-4">說明</th>
-                      <th class="py-3.5 px-4 text-center">操作</th>
+                    <tr class="bg-slate-100/50 text-slate-500 text-xs uppercase font-semibold border-b">
+                      <th class="py-3.5 px-4">申報人</th><th class="py-3.5 px-4">憑證日期</th><th class="py-3.5 px-4">憑證形式</th><th class="py-3.5 px-4">科目</th>
+                      <th class="py-3.5 px-4 text-right">費用金額</th><th class="py-3.5 px-4">抬頭 / 統編</th><th class="py-3.5 px-4">差旅路線與里程</th><th class="py-3.5 px-4">說明</th><th class="py-3.5 px-4 text-center">操作</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-slate-100 text-sm">
                     {records.map(r => {
-                      const isEditing = editingId === r.id;
-                      if (isEditing) {
+                      if (editingId === r.id) {
                         const isEditDrive = editRowData.category === "差旅費油資補貼";
                         const isEditExempt = editRowData.form.includes("車票") || editRowData.form === "計程車乘車證明";
                         return (
-                          <tr key={r.id} class="bg-indigo-50/50 animate-fade-in">
-                            <td class="py-2 px-2 whitespace-nowrap">
-                              <div class="space-y-1">
-                                <input type="text" value={editRowData.employeeName} onChange={e => handleEditFieldChange("employeeName", e.target.value)} class="w-24 border rounded px-1.5 py-1 text-xs" />
-                                <input type="text" value={editRowData.employeeDept} onChange={e => handleEditFieldChange("employeeDept", e.target.value)} class="w-24 border rounded px-1.5 py-1 text-xs" />
-                              </div>
-                            </td>
-                            <td class="py-2 px-2"><input type="date" value={editRowData.date} onChange={e => handleEditFieldChange("date", e.target.value)} class="w-32 border rounded px-1.5 py-1 text-xs" /></td>
-                            <td class="py-2 px-2">
-                              <select value={editRowData.form} onChange={e => handleEditFieldChange("form", e.target.value)} class="w-28 border rounded px-1.5 py-1 text-xs">
-                                {CERTIFICATE_FORMS.map(f => <option key={f} value={f}>{f}</option>)}
-                              </select>
-                            </td>
-                            <td class="py-2 px-2">
-                              <select value={editRowData.category} onChange={e => handleEditFieldChange("category", e.target.value)} class="w-32 border rounded px-1.5 py-1 text-xs">
-                                {MAIN_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-                              </select>
-                              {editRowData.category === "交通費" && (
-                                <select value={editRowData.subCategory} onChange={e => handleEditFieldChange("subCategory", e.target.value)} class="w-32 mt-1 border rounded px-1.5 py-1 text-xs">
-                                  {TRAFFIC_SUB_SUBJECTS.map(sub => <option key={sub} value={sub}>{sub}</option>)}
-                                </select>
-                              )}
-                            </td>
-                            <td class="py-2 px-2 text-right">
-                              {isEditDrive ? <span class="text-xs font-bold text-indigo-600 block">$ {editRowData.subsidyAmount || 0}</span> : <input type="number" value={editRowData.amount} onChange={e => handleEditFieldChange("amount", e.target.value)} class="w-20 border rounded px-1.5 py-1 text-xs text-right font-bold" />}
-                            </td>
-                            <td class="py-2 px-2">
-                              {isEditExempt ? <span class="text-[10px] text-slate-400 italic">免檢核</span> : (
-                                <div class="space-y-1">
-                                  <input type="text" placeholder="抬頭" value={editRowData.companyTitle} onChange={e => handleEditFieldChange("companyTitle", e.target.value)} class="w-32 border rounded px-1.5 py-1 text-xs" />
-                                  <input type="text" placeholder="統編" value={editRowData.taxId} onChange={e => handleEditFieldChange("taxId", e.target.value)} class="w-32 border rounded px-1.5 py-1 text-xs font-mono" />
-                                </div>
-                              )}
-                            </td>
-                            <td class="py-2 px-2">
-                              {isEditDrive ? (
-                                <div class="space-y-1">
-                                  <input type="text" placeholder="起點" value={editRowData.startLocation} onChange={e => handleEditFieldChange("startLocation", e.target.value)} class="w-24 border rounded px-1.5 py-1 text-xs" />
-                                  <input type="text" placeholder="迄點" value={editRowData.endLocation} onChange={e => handleEditFieldChange("endLocation", e.target.value)} class="w-24 border rounded px-1.5 py-1 text-xs" />
-                                  <input type="number" placeholder="里程" value={editRowData.mileage} onChange={e => handleEditFieldChange("mileage", e.target.value)} class="w-24 border rounded px-1.5 py-1 text-xs font-bold" />
-                                </div>
-                              ) : <span class="text-slate-400 text-xs">-</span>}
-                            </td>
-                            <td class="py-2 px-2"><input type="text" value={editRowData.description} onChange={e => handleEditFieldChange("description", e.target.value)} class="w-32 border rounded px-1.5 py-1 text-xs" /></td>
-                            <td class="py-2 px-2 text-center">
-                              <div class="flex items-center justify-center space-x-1">
-                                <button onClick={saveInlineEdit} class="bg-indigo-600 text-white px-2 py-1 rounded text-xs font-bold">儲存</button>
-                                <button onClick={cancelInlineEdit} class="bg-slate-300 text-slate-700 px-2 py-1 rounded text-xs">取消</button>
-                              </div>
-                            </td>
+                          <tr key={r.id} class="bg-indigo-50/50">
+                            <td class="py-2 px-2"><input type="text" value={editRowData.employeeName} onChange={e => handleEditFieldChange("employeeName", e.target.value)} class="w-20 border rounded px-1 mb-1 text-xs" /><br/><input type="text" value={editRowData.employeeDept} onChange={e => handleEditFieldChange("employeeDept", e.target.value)} class="w-20 border rounded px-1 text-xs" /></td>
+                            <td class="py-2 px-2"><input type="date" value={editRowData.date} onChange={e => handleEditFieldChange("date", e.target.value)} class="w-28 border rounded px-1 text-xs" /></td>
+                            <td class="py-2 px-2"><select value={editRowData.form} onChange={e => handleEditFieldChange("form", e.target.value)} class="w-24 border rounded px-1 text-xs">{CERTIFICATE_FORMS.map(f => <option key={f}>{f}</option>)}</select></td>
+                            <td class="py-2 px-2"><select value={editRowData.category} onChange={e => handleEditFieldChange("category", e.target.value)} class="w-28 border rounded px-1 text-xs mb-1">{MAIN_SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>{editRowData.category === "交通費" && <select value={editRowData.subCategory} onChange={e => handleEditFieldChange("subCategory", e.target.value)} class="w-28 border rounded px-1 text-xs">{TRAFFIC_SUB_SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>}</td>
+                            <td class="py-2 px-2 text-right">{isEditDrive ? <span class="text-xs font-bold text-indigo-600 block">$ {editRowData.subsidyAmount || 0}</span> : <input type="number" value={editRowData.amount} onChange={e => handleEditFieldChange("amount", e.target.value)} class="w-16 border rounded px-1 text-xs text-right font-bold" />}</td>
+                            <td class="py-2 px-2">{isEditExempt ? <span class="text-[10px] text-slate-400">免檢核</span> : <><input type="text" placeholder="抬頭" value={editRowData.companyTitle} onChange={e => handleEditFieldChange("companyTitle", e.target.value)} class="w-24 border rounded px-1 mb-1 text-xs" /><br/><input type="text" placeholder="統編" value={editRowData.taxId} onChange={e => handleEditFieldChange("taxId", e.target.value)} class="w-24 border rounded px-1 text-xs font-mono" /></>}</td>
+                            <td class="py-2 px-2">{isEditDrive ? <><input type="text" placeholder="起點" value={editRowData.startLocation} onChange={e => handleEditFieldChange("startLocation", e.target.value)} class="w-16 border rounded px-1 mb-1 text-xs" /><input type="text" placeholder="迄點" value={editRowData.endLocation} onChange={e => handleEditFieldChange("endLocation", e.target.value)} class="w-16 border rounded px-1 mb-1 text-xs" /><br/><input type="number" placeholder="里程" value={editRowData.mileage} onChange={e => handleEditFieldChange("mileage", e.target.value)} class="w-16 border rounded px-1 text-xs" /></> : <span class="text-slate-400">-</span>}</td>
+                            <td class="py-2 px-2"><input type="text" value={editRowData.description} onChange={e => handleEditFieldChange("description", e.target.value)} class="w-24 border rounded px-1 text-xs" /></td>
+                            <td class="py-2 px-2 text-center"><button onClick={saveInlineEdit} class="bg-indigo-600 text-white px-2 py-1 rounded text-xs mb-1 w-full">儲存</button><button onClick={cancelInlineEdit} class="bg-slate-300 text-slate-700 px-2 py-1 rounded text-xs w-full">取消</button></td>
                           </tr>
                         );
                       }
-
-                      const isTitleMatched = r.companyTitle.trim() === TARGET_COMPANY;
-                      const isTaxIdMatched = r.taxId.trim() === TARGET_TAX_ID;
-                      const isDrive = r.category === "差旅費油資補貼";
+                      const isTitleMatched = r.companyTitle.trim() === TARGET_COMPANY; const isTaxIdMatched = r.taxId.trim() === TARGET_TAX_ID; const isDrive = r.category === "差旅費油資補貼";
                       return (
                         <tr key={r.id} class="hover:bg-slate-50 transition-colors">
-                          <td class="py-4 px-4 whitespace-nowrap"><div class="font-bold text-slate-800">{r.employeeName}</div><div class="text-xs text-slate-500">{r.employeeDept}</div></td>
+                          <td class="py-4 px-4 whitespace-nowrap"><div class="font-bold">{r.employeeName}</div><div class="text-xs text-slate-500">{r.employeeDept}</div></td>
                           <td class="py-4 px-4 font-mono text-slate-600 whitespace-nowrap">{r.date}</td>
                           <td class="py-4 px-4 whitespace-nowrap"><span class="bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-md">{r.form === "其他" ? r.formCustom : r.form}</span></td>
-                          <td class="py-4 px-4 whitespace-nowrap">
-                            <div class="space-y-0.5">
-                              <span class={`text-xs px-2.5 py-1 rounded-md font-semibold border ${isDrive ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-amber-50 text-amber-800 border-amber-100'}`}>{r.category === "其他(手動輸入)" ? r.categoryCustom : r.category}</span>
-                              {r.category === "交通費" && r.subCategory && <div class="text-[10px] text-slate-500 font-medium pl-1">➔ {r.subCategory}</div>}
-                            </div>
-                          </td>
-                          <td class="py-4 px-4 font-bold text-slate-900 text-right whitespace-nowrap">$ {r.amount.toLocaleString()}</td>
-                          <td class="py-4 px-4">
-                            {r.form.includes("車票") || r.form === "計程車乘車證明" ? <span class="text-slate-400 text-xs italic">🎫 免檢核</span> : (
-                              <React.Fragment>
-                                <div class={`text-xs font-semibold ${isTitleMatched ? "text-emerald-700" : "text-slate-500"}`}>{r.companyTitle || "（無抬頭）"}</div>
-                                <div class={`text-[10px] font-mono ${isTaxIdMatched ? "text-emerald-700 font-semibold" : "text-slate-400"}`}>統編: {r.taxId || "（無統編）"}</div>
-                              </React.Fragment>
-                            )}
-                          </td>
-                          <td class="py-4 px-4 max-w-xs">
-                            {isDrive ? (
-                              <div class="space-y-1">
-                                <div class="text-xs font-medium text-slate-800"><span class="w-2 h-2 rounded-full bg-indigo-500 mr-1 inline-block"></span>{r.startLocation} ➔ {r.endLocation}</div>
-                                <div class="text-[11px] text-slate-500 font-mono">里程：<span class="font-bold text-indigo-600">{r.mileage}</span> km</div>
-                              </div>
-                            ) : <span class="text-slate-400 text-xs">-</span>}
-                          </td>
-                          <td class="py-4 px-4 text-slate-500 max-w-xs truncate">{r.description || "-"}</td>
-                          <td class="py-4 px-4 text-center whitespace-nowrap">
-                            <div class="flex items-center justify-center space-x-1.5">
-                              <button onClick={() => startInlineEdit(r)} class="text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg" title="編輯"><IconEdit /></button>
-                              <button onClick={() => handleDeleteRecord(r.id)} class="text-rose-500 hover:bg-rose-50 p-2 rounded-lg" title="刪除"><IconTrash /></button>
-                            </div>
-                          </td>
+                          <td class="py-4 px-4 whitespace-nowrap"><span class={`text-xs px-2.5 py-1 rounded-md font-semibold border ${isDrive ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-amber-50 text-amber-800 border-amber-100'}`}>{r.category === "其他(手動輸入)" ? r.categoryCustom : r.category}</span>{r.category === "交通費" && r.subCategory && <div class="text-[10px] text-slate-500 pl-1">➔ {r.subCategory}</div>}</td>
+                          <td class="py-4 px-4 font-bold text-right whitespace-nowrap">$ {r.amount.toLocaleString()}</td>
+                          <td class="py-4 px-4">{r.form.includes("車票") || r.form === "計程車乘車證明" ? <span class="text-slate-400 text-xs italic">🎫 免檢核</span> : <><div class={`text-xs font-semibold ${isTitleMatched ? "text-emerald-700" : "text-slate-500"}`}>{r.companyTitle || "（無）"}</div><div class={`text-[10px] font-mono ${isTaxIdMatched ? "text-emerald-700 font-semibold" : "text-slate-400"}`}>統編: {r.taxId || "（無）"}</div></>}</td>
+                          <td class="py-4 px-4">{isDrive ? <><div class="text-xs font-medium"><span class="w-2 h-2 rounded-full bg-indigo-500 mr-1 inline-block"></span>{r.startLocation} ➔ {r.endLocation}</div><div class="text-[11px] text-slate-500 font-mono">里程：<span class="font-bold text-indigo-600">{r.mileage}</span> km</div></> : <span class="text-slate-400 text-xs">-</span>}</td>
+                          <td class="py-4 px-4 text-slate-500 text-xs max-w-[120px] truncate">{r.description || "-"}</td>
+                          <td class="py-4 px-4 text-center whitespace-nowrap"><button onClick={() => startInlineEdit(r)} class="text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg"><IconEdit /></button><button onClick={() => handleDeleteRecord(r.id)} class="text-rose-500 hover:bg-rose-50 p-2 rounded-lg"><IconTrash /></button></td>
                         </tr>
                       );
                     })}
@@ -1106,293 +643,106 @@
             )}
           </div>
 
-          {/* --- 視窗 1：選擇輸入方式 --- */}
+          {/* --- Modal 1: Input Select --- */}
           {showAddModal && (
             <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-              <div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
-                <div class="flex justify-between items-center mb-5">
-                  <h3 class="text-lg font-bold text-slate-900">選擇憑證輸入方式</h3>
-                  <button onClick={() => setShowAddModal(false)} class="text-slate-400 hover:text-slate-600 p-1">✕</button>
-                </div>
-
+              <div class="bg-white rounded-3xl w-full max-w-md p-6 animate-in fade-in zoom-in-95">
+                <div class="flex justify-between items-center mb-5"><h3 class="text-lg font-bold">選擇憑證輸入方式</h3><button onClick={() => setShowAddModal(false)} class="text-slate-400">✕</button></div>
                 <div class="space-y-3.5">
-                  <button onClick={() => fileLibraryRef.current.click()} class="w-full flex items-center justify-between p-4 rounded-2xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50 text-left">
-                    <div class="flex items-center space-x-3">
-                      <div class="p-3 bg-indigo-100 text-indigo-600 rounded-xl"><IconUpload /></div>
-                      <div>
-                        <span class="block font-bold text-slate-800">拍照或相簿圖庫匯入</span>
-                        <span class="block text-slate-400 text-xs mt-0.5">可同時拍攝 A4 紙上多張憑證</span>
-                      </div>
-                    </div>
-                    <span class="text-slate-300">❯</span>
-                  </button>
+                  <button onClick={() => fileLibraryRef.current.click()} class="w-full flex items-center justify-between p-4 rounded-2xl border hover:border-indigo-500 hover:bg-indigo-50 text-left"><div class="flex items-center space-x-3"><div class="p-3 bg-indigo-100 text-indigo-600 rounded-xl"><IconUpload /></div><div><span class="block font-bold">拍照或相簿圖庫匯入</span><span class="block text-slate-400 text-xs mt-0.5">可同時辨識多張發票車票</span></div></div><span class="text-slate-300">❯</span></button>
                   <input type="file" ref={fileLibraryRef} accept="image/*" class="hidden" onChange={handleImageUpload} />
-
-                  <button onClick={() => fileDocRef.current.click()} class="w-full flex items-center justify-between p-4 rounded-2xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50 text-left">
-                    <div class="flex items-center space-x-3">
-                      <div class="p-3 bg-teal-100 text-teal-600 rounded-xl"><IconFolderOpen /></div>
-                      <div>
-                        <span class="block font-bold text-slate-800">選擇檔案</span>
-                        <span class="block text-slate-400 text-xs mt-0.5">匯入 PDF 等多格式單據檔案</span>
-                      </div>
-                    </div>
-                    <span class="text-slate-300">❯</span>
-                  </button>
+                  <button onClick={() => fileDocRef.current.click()} class="w-full flex items-center justify-between p-4 rounded-2xl border hover:border-indigo-500 hover:bg-indigo-50 text-left"><div class="flex items-center space-x-3"><div class="p-3 bg-teal-100 text-teal-600 rounded-xl"><IconFolderOpen /></div><div><span class="block font-bold">選擇檔案</span><span class="block text-slate-400 text-xs mt-0.5">選取其他格式單據</span></div></div><span class="text-slate-300">❯</span></button>
                   <input type="file" ref={fileDocRef} accept="image/*,application/pdf" class="hidden" onChange={handleImageUpload} />
-
-                  <button onClick={startManualInput} class="w-full flex items-center justify-between p-4 rounded-2xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50 text-left">
-                    <div class="flex items-center space-x-3">
-                      <div class="p-3 bg-amber-100 text-amber-600 rounded-xl"><IconEdit /></div>
-                      <div>
-                        <span class="block font-bold text-slate-800">差旅費油資補貼手動輸入</span>
-                        <span class="block text-slate-400 text-xs mt-0.5">無單據圖像時直接快速手動填寫</span>
-                      </div>
-                    </div>
-                    <span class="text-slate-300">❯</span>
-                  </button>
+                  <button onClick={startManualInput} class="w-full flex items-center justify-between p-4 rounded-2xl border hover:border-indigo-500 hover:bg-indigo-50 text-left"><div class="flex items-center space-x-3"><div class="p-3 bg-amber-100 text-amber-600 rounded-xl"><IconEdit /></div><div><span class="block font-bold">差旅費油資補貼手動輸入</span><span class="block text-slate-400 text-xs mt-0.5">無圖檔時直接登錄</span></div></div><span class="text-slate-300">❯</span></button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* --- 視窗 2：核對與編輯 --- */}
+          {/* --- Modal 2: Confirm / Edit --- */}
           {showConfirmModal && (
             <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-40 overflow-y-auto">
-              <div class="bg-white rounded-3xl w-full max-w-2xl my-8 overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
-                <div class="bg-slate-900 text-white p-5 flex justify-between items-center">
-                  <div>
-                    <h3 class="text-lg font-bold">重新核對憑證資料</h3>
-                  </div>
-                  <button onClick={() => { cancelOcr(); setShowConfirmModal(false); }} class="text-slate-400 hover:text-white">✕</button>
-                </div>
-
+              <div class="bg-white rounded-3xl w-full max-w-2xl my-8 overflow-hidden">
+                <div class="bg-slate-900 text-white p-5 flex justify-between items-center"><h3 class="text-lg font-bold">重新核對憑證資料</h3><button onClick={() => { cancelOcr(); setShowConfirmModal(false); }} class="text-slate-400">✕</button></div>
                 <div class="p-6 max-h-[70vh] overflow-y-auto">
-                  {isOcrLoading && (
-                    <div class="mb-5 bg-indigo-50 border border-indigo-200 p-3.5 rounded-2xl flex items-center justify-between animate-pulse-light">
-                      <span class="text-xs font-bold text-indigo-800">🤖 AI 背景辨識中... 若有多張憑證將自動加入明細表！</span>
-                    </div>
-                  )}
-
+                  {isOcrLoading && <div class="mb-5 bg-indigo-50 p-3.5 rounded-2xl animate-pulse-light text-xs font-bold text-indigo-800">🤖 AI 高精度辨識中... (多張憑證將自動批次加入列表)</div>}
                   {currentRecord.category === "差旅費油資補貼" ? (
                     <div class="space-y-4">
-                      <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-1.5">報銷科目</label>
-                        <select value={currentRecord.category} onChange={(e) => setCurrentRecord({ ...currentRecord, category: e.target.value })} class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none">
-                          {MAIN_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      </div>
-
+                      <select value={currentRecord.category} onChange={(e) => setCurrentRecord({ ...currentRecord, category: e.target.value })} class="w-full border rounded-xl px-3 py-2.5 text-sm font-semibold"><option>差旅費油資補貼</option>{MAIN_SUBJECTS.filter(s=>s!=="差旅費油資補貼").map(s => <option key={s}>{s}</option>)}</select>
                       <div class="border border-indigo-100 rounded-2xl p-4 bg-indigo-50/30 space-y-3.5">
-                        <span class="block text-xs font-bold text-indigo-800 flex items-center"><IconCar /><span class="ml-1">自駕行程詳細資料與里程稽核</span></span>
+                        <span class="block text-xs font-bold text-indigo-800 flex items-center"><IconCar /><span class="ml-1">自駕行程里程稽核</span></span>
                         <div class="grid grid-cols-2 gap-3">
-                          <div>
-                            <label class="block text-[11px] font-semibold text-slate-500 mb-1">起始地點</label>
-                            <input type="text" value={currentRecord.startLocation} onChange={(e) => setCurrentRecord({ ...currentRecord, startLocation: e.target.value })} class="w-full border rounded-xl px-3 py-2 text-sm" />
-                          </div>
-                          <div>
-                            <label class="block text-[11px] font-semibold text-slate-500 mb-1">結束地點</label>
-                            <input type="text" value={currentRecord.endLocation} onChange={(e) => setCurrentRecord({ ...currentRecord, endLocation: e.target.value })} class="w-full border rounded-xl px-3 py-2 text-sm font-bold" />
-                          </div>
+                          <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">起始地點</label><input type="text" value={currentRecord.startLocation} onChange={(e) => setCurrentRecord({ ...currentRecord, startLocation: e.target.value })} class="w-full border rounded-xl px-3 py-2 text-sm" /></div>
+                          <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">結束地點</label><input type="text" value={currentRecord.endLocation} onChange={(e) => setCurrentRecord({ ...currentRecord, endLocation: e.target.value })} class="w-full border rounded-xl px-3 py-2 text-sm" /></div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
-                          <div>
-                            <label class="block text-[11px] font-semibold text-slate-500 mb-1">實際申報里程 (km)</label>
-                            <input type="number" value={currentRecord.mileage} onChange={(e) => setCurrentRecord({ ...currentRecord, mileage: e.target.value })} class="w-full border rounded-xl px-3 py-2 text-sm font-bold" />
-                          </div>
-                          <div>
-                            <label class="block text-[11px] font-semibold text-slate-500 mb-1">自駕補貼 (NT$)</label>
-                            <input type="number" value={currentRecord.subsidyAmount} onChange={(e) => setCurrentRecord({ ...currentRecord, subsidyAmount: e.target.value })} class="w-full bg-slate-100 border rounded-xl px-3 py-2 text-sm font-bold text-indigo-700" />
-                          </div>
+                          <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">實際申報里程 (km)</label><input type="number" value={currentRecord.mileage} onChange={(e) => setCurrentRecord({ ...currentRecord, mileage: e.target.value })} class="w-full border rounded-xl px-3 py-2 text-sm font-bold" /></div>
+                          <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">自駕補貼 (NT$)</label><input type="number" value={currentRecord.subsidyAmount} readOnly class="w-full bg-slate-100 border rounded-xl px-3 py-2 text-sm font-bold text-indigo-700" /></div>
                         </div>
-
-                        {currentRecord.startLocation && currentRecord.endLocation && currentRecord.mileage && (() => {
-                          const status = getMileageStatus();
-                          if (!status) return null;
-                          return status.isOver ? (
-                            <div class="bg-amber-50 border-amber-200 p-2.5 rounded-lg flex space-x-2 mt-3">
-                              <span>⚠️</span><div><span class="block text-xs font-bold text-amber-800">里程差異警示 (相差 {status.diff}%)</span><span class="text-[10px] text-amber-600">本系統僅作財務提示，仍可正常存檔。</span></div>
-                            </div>
-                          ) : (
-                            <div class="bg-emerald-50 border-emerald-100 p-2.5 rounded-lg flex space-x-2 mt-3">
-                              <span>✅</span><div><span class="block text-xs font-bold text-emerald-800">符合級距合規誤差內 (相差 {status.diff}%)</span></div>
-                            </div>
-                          );
-                        })()}
+                        {getMileageStatus() && (getMileageStatus().isOver ? <div class="bg-amber-50 p-2.5 rounded-lg text-xs text-amber-800 font-bold">⚠️ 里程差異超標，但仍可存檔</div> : <div class="bg-emerald-50 p-2.5 rounded-lg text-xs text-emerald-800 font-bold">✅ 合乎里程規範</div>)}
                       </div>
-
-                      <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-1.5">憑證日期</label>
-                        <input type="date" value={currentRecord.date} onChange={(e) => setCurrentRecord({ ...currentRecord, date: e.target.value })} class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm" />
+                      <div class="grid grid-cols-2 gap-3">
+                        <div><label class="block text-xs font-bold text-slate-500 mb-1.5">憑證日期</label><input type="date" value={currentRecord.date} onChange={(e) => setCurrentRecord({ ...currentRecord, date: e.target.value })} class="w-full border rounded-xl px-3 py-2.5 text-sm" /></div>
+                        <div><label class="block text-xs font-bold text-slate-500 mb-1.5">憑證形式</label><select value={currentRecord.form} onChange={(e) => setCurrentRecord({ ...currentRecord, form: e.target.value })} class="w-full border rounded-xl px-3 py-2.5 text-sm">{CERTIFICATE_FORMS.map(f => <option key={f}>{f}</option>)}</select></div>
                       </div>
-                      <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-1.5">憑證形式</label>
-                        <select value={currentRecord.form} onChange={(e) => setCurrentRecord({ ...currentRecord, form: e.target.value })} class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm">
-                          {CERTIFICATE_FORMS.map(f => <option key={f} value={f}>{f}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-1">申報說明</label>
-                        <textarea rows="2" value={currentRecord.description} onChange={(e) => setCurrentRecord({ ...currentRecord, description: e.target.value })} placeholder="備註：請說明差旅原因、特殊狀況等" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm" />
-                      </div>
-
-                      <div class="border-t pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <textarea rows="2" value={currentRecord.description} onChange={(e) => setCurrentRecord({ ...currentRecord, description: e.target.value })} placeholder="說明" class="w-full border rounded-xl px-3 py-2.5 text-sm" />
+                      <div class="border-t pt-4 grid grid-cols-2 gap-4">
                         <div>
-                          <span class="block text-xs font-semibold text-slate-500 mb-2">憑證影像 (選用)</span>
-                          {capturedImage ? (
-                            <div class="rounded-xl border overflow-hidden bg-slate-50 aspect-[4/3] flex items-center relative"><img src={capturedImage} class="w-full h-full object-contain" /></div>
-                          ) : (
-                            <div class="rounded-xl border-2 border-dashed bg-slate-50 aspect-[4/3] flex flex-col items-center justify-center p-4">
-                              <label class="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded cursor-pointer">
-                                上傳憑證核驗 <input type="file" accept="image/*" class="hidden" onChange={(e) => {
-                                  if(e.target.files[0]){
-                                    const reader = new FileReader();
-                                    reader.onload = (ev) => { setCapturedImage(ev.target.result); startBackgroundOCR(ev.target.result); };
-                                    reader.readAsDataURL(e.target.files[0]);
-                                  }
-                                }}/>
-                              </label>
-                            </div>
-                          )}
+                          <span class="block text-xs font-semibold text-slate-500 mb-2">影像 (選用)</span>
+                          {capturedImage ? <div class="rounded-xl border aspect-[4/3] relative"><img src={capturedImage} class="w-full h-full object-contain" /></div> : <div class="rounded-xl border-2 border-dashed aspect-[4/3] flex items-center justify-center p-4"><label class="bg-indigo-600 text-white text-xs px-3 py-2 rounded">上傳<input type="file" accept="image/*" class="hidden" onChange={(e)=>{if(e.target.files[0]){const r=new FileReader();r.onload=(ev)=>{setCapturedImage(ev.target.result);startBackgroundOCR(ev.target.result);};r.readAsDataURL(e.target.files[0]);}}}/></label></div>}
                         </div>
-                        {(!currentRecord.form.includes("車票") && currentRecord.form !== "計程車乘車證明") ? (
-                          <div class="border rounded-2xl p-4 bg-slate-50/50 space-y-3.5">
-                            <span class="block text-xs font-bold text-slate-700">📋 憑證核驗 (抬頭或統編擇一)</span>
-                            <input type="text" placeholder="抬頭" value={currentRecord.companyTitle} onChange={(e) => setCurrentRecord({ ...currentRecord, companyTitle: e.target.value })} class="w-full bg-white border rounded-xl px-3 py-2 text-sm" />
-                            <input type="text" placeholder="統編" value={currentRecord.taxId} onChange={(e) => setCurrentRecord({ ...currentRecord, taxId: e.target.value })} class="w-full bg-white border rounded-xl px-3 py-2 text-sm font-mono" />
-                          </div>
-                        ) : <div class="bg-emerald-50 text-xs text-emerald-800 p-4 rounded-2xl">🎫 車票類免核對統編抬頭</div>}
+                        {currentRecord.form.includes("車票") || currentRecord.form === "計程車乘車證明" ? <div class="bg-emerald-50 text-xs text-emerald-800 p-4 rounded-2xl">🎫 車票免核對</div> : <div class="border rounded-2xl p-4 bg-slate-50/50 space-y-3.5"><input type="text" placeholder="抬頭" value={currentRecord.companyTitle} onChange={(e) => setCurrentRecord({ ...currentRecord, companyTitle: e.target.value })} class="w-full bg-white border rounded-xl px-3 py-2 text-sm" /><input type="text" placeholder="統編" value={currentRecord.taxId} onChange={(e) => setCurrentRecord({ ...currentRecord, taxId: e.target.value })} class="w-full bg-white border rounded-xl px-3 py-2 text-sm font-mono" /></div>}
                       </div>
                     </div>
                   ) : (
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <span class="block text-xs font-bold text-slate-500 mb-2 uppercase">憑證預覽</span>
-                        {capturedImage ? (
-                          <div class="rounded-xl border bg-slate-50 aspect-[3/4] flex items-center relative"><img src={capturedImage} class="w-full h-full object-contain" /></div>
-                        ) : (
-                          <div class="rounded-xl border-2 border-dashed bg-slate-50 aspect-[3/4] flex items-center justify-center"><span class="text-xs text-slate-400">無影像</span></div>
-                        )}
-                      </div>
-                      <div class="space-y-4">
-                        <div>
-                          <label class="block text-xs font-bold text-slate-500 mb-1.5">報銷科目</label>
-                          <select value={currentRecord.category} onChange={(e) => setCurrentRecord({ ...currentRecord, category: e.target.value, subCategory: e.target.value === "交通費" ? "大眾運輸" : "" })} class="w-full bg-slate-50 border rounded-xl px-3 py-2.5 text-sm font-semibold">
-                            {MAIN_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
+                      <div><span class="block text-xs font-bold text-slate-500 mb-2">憑證預覽</span>{capturedImage ? <div class="rounded-xl border aspect-[3/4]"><img src={capturedImage} class="w-full h-full object-contain" /></div> : <div class="rounded-xl border-2 border-dashed aspect-[3/4] flex items-center justify-center text-slate-400">無影像</div>}</div>
+                      <div class="space-y-3">
+                        <select value={currentRecord.category} onChange={(e) => setCurrentRecord({ ...currentRecord, category: e.target.value, subCategory: e.target.value === "交通費" ? "大眾運輸" : "" })} class="w-full border rounded-xl px-3 py-2 text-sm font-semibold">{MAIN_SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>
+                        {currentRecord.category === "交通費" && <select value={currentRecord.subCategory} onChange={(e) => setCurrentRecord({ ...currentRecord, subCategory: e.target.value })} class="w-full bg-indigo-50 border-indigo-200 rounded-xl px-3 py-2 text-sm font-semibold">{TRAFFIC_SUB_SUBJECTS.map(sub => <option key={sub}>{sub}</option>)}</select>}
+                        <div class="grid grid-cols-2 gap-2">
+                          <input type="date" value={currentRecord.date} onChange={(e) => setCurrentRecord({ ...currentRecord, date: e.target.value })} class="w-full border rounded-xl px-3 py-2 text-sm" />
+                          <select value={currentRecord.form} onChange={(e) => setCurrentRecord({ ...currentRecord, form: e.target.value })} class="w-full border rounded-xl px-3 py-2 text-sm">{CERTIFICATE_FORMS.map(f => <option key={f}>{f}</option>)}</select>
                         </div>
-                        {currentRecord.category === "交通費" && (
-                          <div>
-                            <label class="block text-xs font-bold text-indigo-700 mb-1.5">➔ 交通副選項</label>
-                            <select value={currentRecord.subCategory} onChange={(e) => setCurrentRecord({ ...currentRecord, subCategory: e.target.value })} class="w-full bg-indigo-50 border-indigo-200 rounded-xl px-3 py-2.5 text-sm font-semibold">
-                              {TRAFFIC_SUB_SUBJECTS.map(sub => <option key={sub} value={sub}>{sub}</option>)}
-                            </select>
-                          </div>
-                        )}
-                        <div>
-                          <label class="block text-xs font-bold text-slate-500 mb-1.5">憑證日期</label>
-                          <input type="date" value={currentRecord.date} onChange={(e) => setCurrentRecord({ ...currentRecord, date: e.target.value })} class="w-full bg-slate-50 border rounded-xl px-3 py-2.5 text-sm" />
-                        </div>
-                        <div>
-                          <label class="block text-xs font-bold text-slate-500 mb-1.5">憑證形式</label>
-                          <select value={currentRecord.form} onChange={(e) => setCurrentRecord({ ...currentRecord, form: e.target.value })} class="w-full bg-slate-50 border rounded-xl px-3 py-2.5 text-sm">
-                            {CERTIFICATE_FORMS.map(f => <option key={f} value={f}>{f}</option>)}
-                          </select>
-                        </div>
-                        {(!currentRecord.form.includes("車票") && currentRecord.form !== "計程車乘車證明") && (
-                          <div class="border rounded-2xl p-4 bg-slate-50/50 space-y-3.5">
-                            <span class="block text-xs font-bold text-slate-700">📋 憑證核驗 (擇一必填)</span>
-                            <input type="text" placeholder="抬頭" value={currentRecord.companyTitle} onChange={(e) => setCurrentRecord({ ...currentRecord, companyTitle: e.target.value })} class="w-full bg-white border rounded-xl px-3 py-2 text-sm" />
-                            <input type="text" placeholder="統編" value={currentRecord.taxId} onChange={(e) => setCurrentRecord({ ...currentRecord, taxId: e.target.value })} class="w-full bg-white border rounded-xl px-3 py-2 text-sm font-mono" />
-                          </div>
-                        )}
-                        <div>
-                          <label class="block text-xs font-bold text-slate-500 mb-1.5">費用金額 (NT$)</label>
-                          <input type="number" value={currentRecord.amount} onChange={(e) => setCurrentRecord({ ...currentRecord, amount: e.target.value })} class="w-full bg-slate-50 border rounded-xl px-3 py-2.5 text-sm font-bold text-indigo-600" />
-                        </div>
-                        <div>
-                          <label class="block text-xs font-bold text-slate-500 mb-1">申報說明</label>
-                          <textarea rows="2" value={currentRecord.description} onChange={(e) => setCurrentRecord({ ...currentRecord, description: e.target.value })} placeholder="差旅原因、特殊狀況" class="w-full bg-slate-50 border rounded-xl px-3 py-2.5 text-sm" />
-                        </div>
+                        {(!currentRecord.form.includes("車票") && currentRecord.form !== "計程車乘車證明") && <div class="border p-3 bg-slate-50 rounded-xl space-y-2"><input type="text" placeholder="抬頭" value={currentRecord.companyTitle} onChange={(e) => setCurrentRecord({ ...currentRecord, companyTitle: e.target.value })} class="w-full border rounded-xl px-3 py-2 text-sm" /><input type="text" placeholder="統編" value={currentRecord.taxId} onChange={(e) => setCurrentRecord({ ...currentRecord, taxId: e.target.value })} class="w-full border rounded-xl px-3 py-2 text-sm font-mono" /></div>}
+                        <input type="number" placeholder="金額" value={currentRecord.amount} onChange={(e) => setCurrentRecord({ ...currentRecord, amount: e.target.value })} class="w-full border rounded-xl px-3 py-2 text-sm font-bold text-indigo-600" />
+                        <textarea rows="2" placeholder="說明" value={currentRecord.description} onChange={(e) => setCurrentRecord({ ...currentRecord, description: e.target.value })} class="w-full border rounded-xl px-3 py-2 text-sm" />
                       </div>
                     </div>
                   )}
                 </div>
-                <div class="bg-slate-50 p-5 border-t flex space-x-3">
-                  <button onClick={() => { cancelOcr(); setShowConfirmModal(false); }} class="flex-1 bg-white border py-3 rounded-xl font-semibold text-sm">取消</button>
-                  <button onClick={handleConfirmSave} class="flex-1 bg-slate-900 text-white py-3 rounded-xl font-semibold text-sm shadow">確認無誤，彙整儲存</button>
-                </div>
+                <div class="bg-slate-50 p-5 border-t flex space-x-3"><button onClick={() => { cancelOcr(); setShowConfirmModal(false); }} class="flex-1 bg-white border py-3 rounded-xl font-semibold text-sm">取消</button><button onClick={handleConfirmSave} class="flex-1 bg-slate-900 text-white py-3 rounded-xl font-semibold text-sm shadow">確認無誤，彙整儲存</button></div>
               </div>
             </div>
           )}
 
-          {/* --- 視窗 3：匯出防重複警告框 --- */}
+          {/* --- Modal 3-6: Alerts & Exports --- */}
           {showDuplicateModal && (
             <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-              <div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl text-center animate-in fade-in zoom-in-95 duration-200">
-                <div class="flex justify-center mb-4"><span class="text-5xl">⚠️</span></div>
-                <h3 class="text-xl font-bold text-amber-600 mb-2">發現疑似重複憑證</h3>
-                <div class="text-sm text-slate-600 text-left bg-amber-50 p-4 rounded-xl mb-6">
-                  系統比對發現有 <strong>{duplicateIds.length}</strong> 筆憑證的「日期、金額、科目與統編」完全相同，疑似重複登錄。<br/><br/>請問您要自動刪除這些重複的項目，還是保留全部資料並繼續匯出？
-                </div>
-                <div class="space-y-3">
-                  <button onClick={removeDuplicatesAndExport} class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow transition-colors">
-                    🗑️ 自動刪除重複並匯出
-                  </button>
-                  <button onClick={ignoreDuplicatesAndExport} class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 px-4 rounded-xl transition-colors">
-                    保留全部並繼續匯出
-                  </button>
-                  <button onClick={() => setShowDuplicateModal(false)} class="w-full bg-white hover:bg-slate-50 text-slate-500 py-3 rounded-xl border border-slate-200 transition-colors">
-                    取消匯出
-                  </button>
-                </div>
+              <div class="bg-white rounded-3xl w-full max-w-md p-6 text-center"><span class="text-5xl">⚠️</span><h3 class="text-xl font-bold text-amber-600 mb-2 mt-2">發現疑似重複憑證</h3><div class="text-sm bg-amber-50 p-4 rounded-xl mb-6">有 {duplicateIds.length} 筆憑證完全相同。自動刪除重複，還是保留全部匯出？</div>
+                <div class="space-y-2"><button onClick={removeDuplicatesAndExport} class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl">🗑️ 自動刪除重複並匯出</button><button onClick={ignoreDuplicatesAndExport} class="w-full bg-slate-200 text-slate-800 font-bold py-3 rounded-xl">保留全部並匯出</button><button onClick={() => setShowDuplicateModal(false)} class="w-full bg-white text-slate-500 py-3 rounded-xl border">取消</button></div>
               </div>
             </div>
           )}
 
-          {/* --- 視窗 4：匯出 --- */}
           {showExportModal && (
             <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-              <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl text-center animate-in fade-in zoom-in-95 duration-200">
-                <div class="flex justify-end"><button onClick={() => setShowExportModal(false)} class="text-slate-400 p-1 hover:text-slate-600">✕</button></div>
-                <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4"><IconDownload /></div>
-                <h3 class="text-lg font-bold text-slate-900 mb-2">匯出選項</h3>
-                <div class="space-y-3 mt-6">
-                  <button onClick={handleSaveLocal} class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow">⬇️ 儲存至本機</button>
-                  <button onClick={handleSystemShare} class="w-full bg-slate-900 text-white font-bold py-3 px-4 rounded-xl shadow flex items-center justify-center space-x-2"><IconShare /><span>📤 傳送/分享</span></button>
-                </div>
+              <div class="bg-white rounded-3xl w-full max-w-sm p-6 text-center"><div class="flex justify-end"><button onClick={() => setShowExportModal(false)} class="text-slate-400">✕</button></div><div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4"><IconDownload /></div><h3 class="text-lg font-bold mb-2">匯出選項</h3>
+                <div class="space-y-3 mt-6"><button onClick={handleSaveLocal} class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow">⬇️ 儲存至本機</button><button onClick={handleSystemShare} class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl shadow flex justify-center space-x-2"><IconShare /><span>📤 分享/傳送</span></button></div>
               </div>
             </div>
           )}
 
-          {/* --- 視窗 5：通用警告框 --- */}
           {showAlertModal && (
             <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-              <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl text-center">
-                <div class="flex justify-center mb-4"><IconAlert /></div>
-                <h3 class="text-lg font-bold text-rose-600 mb-2">系統提示</h3>
-                <div class="text-sm text-slate-600 text-left bg-rose-50 p-4 rounded-xl mb-5 whitespace-pre-wrap">{alertMessage}</div>
-                <button onClick={() => setShowAlertModal(false)} class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl">確認</button>
-              </div>
+              <div class="bg-white rounded-3xl w-full max-w-sm p-6 text-center"><div class="flex justify-center mb-4"><IconAlert /></div><h3 class="text-lg font-bold text-rose-600 mb-2">系統提示</h3><div class="text-sm bg-rose-50 p-4 rounded-xl mb-5 whitespace-pre-wrap text-left">{alertMessage}</div><button onClick={() => setShowAlertModal(false)} class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl">確認</button></div>
             </div>
           )}
 
-          {/* --- 視窗 6：清除所有明細確認框 --- */}
           {showClearConfirmModal && (
             <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-              <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl text-center animate-in fade-in zoom-in-95 duration-200">
-                <div class="flex justify-center mb-4"><span class="text-5xl">🗑️</span></div>
-                <h3 class="text-xl font-bold text-rose-600 mb-2">確認清除所有明細？</h3>
-                <div class="text-sm text-slate-600 text-left bg-rose-50 p-4 rounded-xl mb-6">
-                  您即將清除目前列表中的「所有憑證明細資料」。<br/><br/><strong>⚠️ 警告：</strong> 此操作無法復原，清除後將無法找回尚未匯出的資料。請確認是否繼續？
-                </div>
-                <div class="space-y-3">
-                  <button onClick={confirmClearRecords} class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-xl shadow transition-colors">
-                    是的，確認清除
-                  </button>
-                  <button onClick={() => setShowClearConfirmModal(false)} class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 px-4 rounded-xl transition-colors">
-                    取消，保留資料
-                  </button>
-                </div>
+              <div class="bg-white rounded-3xl w-full max-w-sm p-6 text-center"><span class="text-5xl">🗑️</span><h3 class="text-xl font-bold text-rose-600 mb-2 mt-2">確認清除所有明細？</h3><div class="text-sm bg-rose-50 p-4 rounded-xl mb-6">⚠️ 操作無法復原，請確認是否繼續？</div>
+                <div class="space-y-2"><button onClick={confirmClearRecords} class="w-full bg-rose-600 text-white font-bold py-3 rounded-xl">是的，確認清除</button><button onClick={() => setShowClearConfirmModal(false)} class="w-full bg-slate-200 text-slate-800 font-bold py-3 rounded-xl">取消</button></div>
               </div>
             </div>
           )}
