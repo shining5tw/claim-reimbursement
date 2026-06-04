@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>費用報銷彙整表 v3.3.0</title>
+  <title>費用報銷彙整表 v3.4.2</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React 18 & ReactDOM 18 CDN -->
@@ -35,129 +35,81 @@
 
     const TARGET_COMPANY = "茂生食品股份有限公司";
     const TARGET_TAX_ID = "85099593";
-    const VERSION = "v3.3.0";
-    const SUBSIDY_RATE = 6; // 每公里自駕補貼費率 (NTD)
+    const VERSION = "v3.4.2";
+    const SUBSIDY_RATE = 6;
 
-    // --- 申報部門選項 ---
-    const DEPARTMENTS = [
-      "總經理室", "管理部", "財會部", "生產部", "業務部", "稽核室"
-    ];
+    const DEPARTMENTS = ["總經理室", "管理部", "財會部", "生產部", "業務部", "稽核室"];
+    const CERTIFICATE_FORMS = ["電子發票", "手寫發票", "機打發票", "紙質車票", "電子車票", "計程車乘車證明", "電子收據", "手寫收據", "其他"];
+    const MAIN_SUBJECTS = ["交通費", "住宿費", "膳雜費", "餐飲費(交際費)", "差旅費油資補貼", "其他(手動輸入)"];
+    const TRAFFIC_SUB_SUBJECTS = ["大眾運輸", "計程車", "ETC過路費", "加油單", "停車費", "其他(手動輸入)"];
 
-    // --- 憑證形式 ---
-    const CERTIFICATE_FORMS = [
-      "電子發票", "手寫發票", "機打發票", "紙質車票", "電子車票", "計程車乘車證明", "電子收據", "手寫收據", "其他"
-    ];
-
-    // --- 會計科目主分類 ---
-    const MAIN_SUBJECTS = [
-      "交通費", "住宿費", "膳雜費", "餐飲費(交際費)", "差旅費油資補貼", "其他(手動輸入)"
-    ];
-
-    // --- 交通費副分類 ---
-    const TRAFFIC_SUB_SUBJECTS = [
-      "大眾運輸", "計程車", "ETC過路費", "加油單", "停車費", "其他(手動輸入)"
-    ];
-
-    // --- 台灣地理 GPS 經緯度資料庫 (供里程估算) ---
     const TAIWAN_LOCATIONS = {
-      "茂生食品": { lon: 120.354, lat: 23.953 },
-      "茂生": { lon: 120.354, lat: 23.953 },
-      "台北車站": { lon: 121.517, lat: 25.047 },
-      "台北": { lon: 121.564, lat: 25.033 },
-      "板橋": { lon: 121.462, lat: 25.011 },
-      "新北": { lon: 121.462, lat: 25.011 },
-      "桃園": { lon: 121.301, lat: 24.993 },
-      "新竹": { lon: 120.964, lat: 24.806 },
-      "苗栗": { lon: 120.821, lat: 24.564 },
-      "台中": { lon: 120.673, lat: 24.147 },
-      "彰化": { lon: 120.544, lat: 24.081 },
-      "南投": { lon: 120.686, lat: 23.916 },
-      "雲林": { lon: 120.441, lat: 23.709 },
-      "嘉義": { lon: 120.440, lat: 23.481 },
-      "台南": { lon: 120.218, lat: 22.997 },
-      "高雄": { lon: 120.312, lat: 22.627 },
-      "屏東": { lon: 120.488, lat: 22.673 },
-      "宜蘭": { lon: 121.756, lat: 24.754 },
-      "花蓮": { lon: 121.601, lat: 23.987 },
-      "台東": { lon: 121.151, lat: 22.756 },
+      "茂生食品": { lon: 120.354, lat: 23.953 }, "茂生": { lon: 120.354, lat: 23.953 },
+      "台北車站": { lon: 121.517, lat: 25.047 }, "台北": { lon: 121.564, lat: 25.033 },
+      "板橋": { lon: 121.462, lat: 25.011 }, "新北": { lon: 121.462, lat: 25.011 },
+      "桃園": { lon: 121.301, lat: 24.993 }, "新竹": { lon: 120.964, lat: 24.806 },
+      "苗栗": { lon: 120.821, lat: 24.564 }, "台中": { lon: 120.673, lat: 24.147 },
+      "彰化": { lon: 120.544, lat: 24.081 }, "南投": { lon: 120.686, lat: 23.916 },
+      "雲林": { lon: 120.441, lat: 23.709 }, "嘉義": { lon: 120.440, lat: 23.481 },
+      "台南": { lon: 120.218, lat: 22.997 }, "高雄": { lon: 120.312, lat: 22.627 },
+      "屏東": { lon: 120.488, lat: 22.673 }, "宜蘭": { lon: 121.756, lat: 24.754 },
+      "花蓮": { lon: 121.601, lat: 23.987 }, "台東": { lon: 121.151, lat: 22.756 },
       "基隆": { lon: 121.740, lat: 25.131 }
     };
 
-    // --- 大圓里程計算函數 (Haversine) + 1.35x 蜿蜒度修正 ---
     const calculateMapDistance = (start, end) => {
       if (!start || !end) return 0;
       let p1 = null; let p2 = null;
-
       for (const [key, value] of Object.entries(TAIWAN_LOCATIONS)) {
         if (start.toLowerCase().includes(key)) p1 = value;
         if (end.toLowerCase().includes(key)) p2 = value;
       }
-
-      if (!p1) {
-        let h = 0; for (let i = 0; i < start.length; i++) h = start.charCodeAt(i) + ((h << 5) - h);
-        p1 = { lon: 120.2 + (Math.abs(h % 150) / 100), lat: 22.5 + (Math.abs((h >> 3) % 250) / 100) };
-      }
-      if (!p2) {
-        let h = 0; for (let i = 0; i < end.length; i++) h = end.charCodeAt(i) + ((h << 5) - h);
-        p2 = { lon: 120.2 + (Math.abs(h % 150) / 100), lat: 22.5 + (Math.abs((h >> 3) % 250) / 100) };
-      }
-
+      if (!p1) { let h = 0; for (let i = 0; i < start.length; i++) h = start.charCodeAt(i) + ((h << 5) - h); p1 = { lon: 120.2 + (Math.abs(h % 150) / 100), lat: 22.5 + (Math.abs((h >> 3) % 250) / 100) }; }
+      if (!p2) { let h = 0; for (let i = 0; i < end.length; i++) h = end.charCodeAt(i) + ((h << 5) - h); p2 = { lon: 120.2 + (Math.abs(h % 150) / 100), lat: 22.5 + (Math.abs((h >> 3) % 250) / 100) }; }
       const R = 6371;
-      const dLat = (p2.lat - p1.lat) * Math.PI / 180;
-      const dLon = (p2.lon - p1.lon) * Math.PI / 180;
+      const dLat = (p2.lat - p1.lat) * Math.PI / 180; const dLon = (p2.lon - p1.lon) * Math.PI / 180;
       const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
       return Math.round(R * c * 1.35 * 10) / 10;
     };
 
-    // --- SVG 圖標 ---
     const IconPlus = () => <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>;
     const IconUpload = () => <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>;
     const IconEdit = () => <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>;
     const IconTrash = () => <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>;
     const IconAlert = () => <svg class="w-12 h-12 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>;
     const IconDownload = () => <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>;
-    const IconSparkles = () => <svg class="w-4 h-4 text-indigo-500 animate-pulse" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 21l-.813-5.096L3 15l5.096-.813L9 9l.813 5.096L15 15l-5.096.813zM19.071 4.929l-.707 3.536-3.536.707 3.536.707.707 3.536.707-3.536 3.536-.707-3.536-.707-.707-3.536z" /></svg>;
     const IconCar = () => <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.129-1.125v-3.07m-1.594-4.13a11.95 11.95 0 01-2.223-.084l-1.251-4.684a1.5 1.5 0 00-1.45-1.11H8.09a1.5 1.5 0 00-1.45 1.11L5.388 9.366a12.013 12.013 0 01-2.223.084M19.5 14.25v-1.5a1.5 1.5 0 00-1.5-1.5h-12a1.5 1.5 0 00-1.5 1.5v1.5m15 0h-15" /></svg>;
     const IconShare = () => <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186l5.302-2.356a2.25 2.25 0 11.666 1.498L7.217 10.907zm0 2.186l5.302 2.356a2.25 2.25 0 11-.666 1.498l-5.302-2.356z" /></svg>;
     const IconFolderOpen = () => <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" /></svg>;
 
-    // --- CSV 解析器 ---
     const parseCSV = (text) => {
-      const lines = [];
-      let row = [""];
-      let inQuotes = false;
+      const lines = []; let row = [""]; let inQuotes = false;
       for (let i = 0; i < text.length; i++) {
-        const c = text[i];
-        const next = text[i+1];
-        if (c === '"') {
-          if (inQuotes && next === '"') { row[row.length - 1] += '"'; i++; } else { inQuotes = !inQuotes; }
-        } else if (c === ',' && !inQuotes) { row.push(''); } 
-        else if ((c === '\r' || c === '\n') && !inQuotes) {
-          if (c === '\r' && next === '\n') { i++; }
-          lines.push(row); row = [''];
-        } else { row[row.length - 1] += c; }
+        const c = text[i]; const next = text[i+1];
+        if (c === '"') { if (inQuotes && next === '"') { row[row.length - 1] += '"'; i++; } else { inQuotes = !inQuotes; } }
+        else if (c === ',' && !inQuotes) { row.push(''); } 
+        else if ((c === '\r' || c === '\n') && !inQuotes) { if (c === '\r' && next === '\n') { i++; } lines.push(row); row = ['']; }
+        else { row[row.length - 1] += c; }
       }
       if (row.length > 1 || row[0] !== '') lines.push(row);
       return lines;
     };
 
     function App() {
-      // --- 狀態管理 ---
-      const [records, setRecords] = useState(() => {
-        const saved = localStorage.getItem("expense_records_v3");
-        return saved ? JSON.parse(saved) : [];
-      });
+      const [records, setRecords] = useState(() => { const saved = localStorage.getItem("expense_records_v3"); return saved ? JSON.parse(saved) : []; });
       const [employeeName, setEmployeeName] = useState(() => localStorage.getItem("expense_emp_name") || "");
       const [employeeDept, setEmployeeDept] = useState(() => localStorage.getItem("expense_emp_dept") || "總經理室");
       const [customApiKey, setCustomApiKey] = useState(() => localStorage.getItem("expense_api_key") || "");
+      // 💡 預設改為最新的 2.5 flash preview 模型
+      const [apiModel, setApiModel] = useState(() => localStorage.getItem("expense_api_model") || "gemini-2.5-flash-preview-09-2025");
 
       useEffect(() => { localStorage.setItem("expense_records_v3", JSON.stringify(records)); }, [records]);
       useEffect(() => { localStorage.setItem("expense_emp_name", employeeName); }, [employeeName]);
       useEffect(() => { localStorage.setItem("expense_emp_dept", employeeDept); }, [employeeDept]);
       useEffect(() => { localStorage.setItem("expense_api_key", customApiKey); }, [customApiKey]);
+      useEffect(() => { localStorage.setItem("expense_api_model", apiModel); }, [apiModel]);
 
-      // --- 每月 1 號申報提醒 ---
       useEffect(() => {
         const today = new Date();
         if (today.getDate() === 1) {
@@ -182,6 +134,9 @@
       const [inputMethod, setInputMethod] = useState("");
       const [capturedImage, setCapturedImage] = useState(null);
       const [isOcrLoading, setIsOcrLoading] = useState(false);
+      
+      const [testKeyStatus, setTestKeyStatus] = useState("");
+      const [availableModels, setAvailableModels] = useState([]);
 
       const ocrControllerRef = useRef(null);
       const fileInputRef = useRef(null); 
@@ -193,8 +148,7 @@
       const [duplicateIds, setDuplicateIds] = useState([]);
 
       const [currentRecord, setCurrentRecord] = useState({
-        date: new Date().toISOString().split("T")[0],
-        form: "電子發票", formCustom: "", category: "交通費", subCategory: "大眾運輸", categoryCustom: "",
+        date: new Date().toISOString().split("T")[0], form: "電子發票", formCustom: "", category: "交通費", subCategory: "大眾運輸", categoryCustom: "",
         amount: "", description: "", companyTitle: "", taxId: "", startLocation: "茂生食品", endLocation: "", mileage: "", subsidyAmount: ""
       });
 
@@ -203,11 +157,9 @@
         let label = r.category;
         if (r.category === "交通費" && r.subCategory) label = `交通費-${r.subCategory}`;
         else if (r.category === "其他(手動輸入)" && r.categoryCustom) label = r.categoryCustom;
-        acc[label] = (acc[label] || 0) + Number(r.amount || 0);
-        return acc;
+        acc[label] = (acc[label] || 0) + Number(r.amount || 0); return acc;
       }, {});
 
-      // --- 智慧里程估算 ---
       const [calculatedDistance, setCalculatedDistance] = useState(0);
       const [mileageDifference, setMileageDifference] = useState(0);
 
@@ -217,9 +169,7 @@
           setCalculatedDistance(mapDist);
           if (currentRecord.mileage && mapDist > 0) {
             setMileageDifference(Math.round((Math.abs(Number(currentRecord.mileage) - mapDist) / mapDist) * 1000) / 10);
-          } else {
-            setMileageDifference(0);
-          }
+          } else { setMileageDifference(0); }
           if (currentRecord.mileage) {
             const computedCost = Math.round(Number(currentRecord.mileage) * SUBSIDY_RATE);
             setCurrentRecord(prev => ({ ...prev, subsidyAmount: computedCost, amount: computedCost }));
@@ -228,9 +178,7 @@
       }, [currentRecord.startLocation, currentRecord.endLocation, currentRecord.mileage, currentRecord.category]);
 
       useEffect(() => {
-        if (currentRecord.category === "差旅費油資補貼") {
-          setCurrentRecord(prev => ({ ...prev, amount: prev.subsidyAmount }));
-        }
+        if (currentRecord.category === "差旅費油資補貼") setCurrentRecord(prev => ({ ...prev, amount: prev.subsidyAmount }));
       }, [currentRecord.subsidyAmount]);
 
       const getMileageStatus = () => {
@@ -243,26 +191,57 @@
         return { isOver: mileageDifference > threshold, threshold, bracket, diff: mileageDifference };
       };
 
-      // --- 檔案上傳與高精度 OCR ---
       const handleImageUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
           const reader = new FileReader();
           reader.onload = (event) => {
             const dataUrl = event.target.result;
-            setCapturedImage(dataUrl);
-            setInputMethod("import");
-            setCurrentRecord({
-              date: "", form: "電子發票", formCustom: "", category: "交通費", subCategory: "大眾運輸", categoryCustom: "",
-              amount: "", description: "", companyTitle: "", taxId: "", startLocation: "茂生食品", endLocation: "", mileage: "", subsidyAmount: ""
-            });
-            setShowAddModal(false);
-            setShowConfirmModal(true);
+            setCapturedImage(dataUrl); setInputMethod("import");
+            setCurrentRecord({ date: "", form: "電子發票", formCustom: "", category: "交通費", subCategory: "大眾運輸", categoryCustom: "", amount: "", description: "", companyTitle: "", taxId: "", startLocation: "茂生食品", endLocation: "", mileage: "", subsidyAmount: "" });
+            setShowAddModal(false); setShowConfirmModal(true);
             startBackgroundOCR(dataUrl);
           };
           reader.readAsDataURL(file);
         }
         e.target.value = "";
+      };
+
+      // 💡 v3.4.2 強化：精準撈出可用的 Model 列表
+      const testApiKeyConnection = async () => {
+        if (!customApiKey.trim()) { setTestKeyStatus("⚠️ 請先輸入 API 金鑰"); return; }
+        setTestKeyStatus("⏳ 測試連線中，正在獲取可用模型清單...");
+        setAvailableModels([]);
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(customApiKey.trim())}`);
+          if (res.ok) {
+            const data = await res.json();
+            // 抓出所有支援 generateContent 的 gemini 模型
+            const models = data.models
+              ?.filter(m => m.name.includes("gemini") && m.supportedGenerationMethods.includes("generateContent"))
+              .map(m => m.name.replace("models/", ""));
+            
+            if (models && models.length > 0) {
+              setAvailableModels(models);
+              setTestKeyStatus(`✅ 測試成功！您的金鑰支援以下模型：\n${models.join(', ')}\n(請從下拉選單選擇其中一個)`);
+              if (!models.includes(apiModel)) {
+                setApiModel(models[0]); // 自動幫使用者切換成清單中的第一個可用模型
+              }
+            } else {
+              setTestKeyStatus(`⚠️ 測試通過，但沒有找到支援生成內容的 Gemini 模型。`);
+            }
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            const errMessage = errData.error?.message || `HTTP ${res.status}`;
+            if (res.status === 403 || res.status === 404) {
+              setTestKeyStatus(`❌ 失敗 (${res.status})：您的金鑰未開通 Generative Language API 權限，請重新申請一個「New Project」的金鑰。`);
+            } else {
+              setTestKeyStatus(`❌ 失敗：${errMessage}`);
+            }
+          }
+        } catch (error) {
+          setTestKeyStatus(`❌ 網路錯誤：無法連接到 Google 伺服器 (${error.message})`);
+        }
       };
 
       const startBackgroundOCR = async (base64Image) => {
@@ -278,28 +257,20 @@
           const apiKey = customApiKey.trim(); 
           const isCanvas = window.location.hostname === "googleusercontent.com" || window.location.hostname.includes("immersive");
           
-          // 💡 防呆檢查：如果是在公開網域且沒填寫金鑰，直接中斷並溫馨提示，避免送出無效請求
           if (!apiKey && !isCanvas) {
             triggerAlert("⚠️ 偵測到您尚未設定 API Key！\n請點擊右上角「⚙️ 系統設定」輸入您的專屬 Google API Key 以啟用 AI 辨識。");
             setIsOcrLoading(false);
             return;
           }
 
-          // 💡 自動選取模型：有金鑰使用最新穩定版 1.5，免金鑰測試平台使用預覽版
-          const modelName = apiKey ? "gemini-1.5-flash" : "gemini-2.5-flash-preview-09-2025";
+          // 套用使用者選擇的模型（或 Canvas 預設模型）
+          const modelName = apiKey ? apiModel : "gemini-2.5-flash-preview-09-2025";
+          const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
           
-          // 💡 重大修正：將金鑰放回 URL Query Parameter，避開自訂 Header 造成的 CORS 預檢 404 問題
-          const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-          
-          let success = false;
-          let parsedRecords = null;
-          let delay = 1000;
-          let isAuthError = false;
-          let errorMsgDetail = "";
+          let success = false; let parsedRecords = null; let delay = 1000; let isAuthError = false; let errorMsgDetail = "";
 
           for (let i = 0; i < 5; i++) {
             try {
-              // 💡 回歸最乾淨的 Fetch，不帶任何自訂 Header
               const response = await fetch(apiURL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -311,14 +282,12 @@
                       { 
                         text: `您是專業的台灣財務收支發票與車票辨識專家。
                         圖片中可能包含「單張」或「多張」憑證。請精確擷取圖片中「所有」憑證的文字資訊。
-                        
-                        ⚠️ 絕對遵守以下超嚴格抓取規則：
                         1. date (憑證日期): **必須尋找票面上的「實際交易日期、開立日期或乘車日期」 (格式 YYYY-MM-DD)。絕對嚴禁使用今天的日期！找不到請回傳 ""。**
-                        2. amount (費用金額): **請精準尋找「NT$」、「總計金額」、「車資」、「合計」、「實付」旁邊的最終數字作為總金額 (整數)。絕對要忽略單價或小計。**
+                        2. amount (費用金額): **請精準尋找最終總金額 (整數)。忽略單價或小計。**
                         3. form (憑證形式): 必須是: "電子發票"、"手寫發票"、"機打發票"、"紙質車票"、"電子車票"、"計程車乘車證明"、"電子收據"、"手寫收據"、"其他"。
                         4. category (主科目): 必須是: "交通費"、"住宿費"、"膳雜費"、"餐飲費(交際費)"、"差旅費油資補貼"、"其他(手動輸入)" 之一。
                         5. subCategory (副科目): 若為交通費，必須是 "大眾運輸"、"計程車"、"ETC過路費"、"加油單"、"停車費" 之一。
-                        6. description: 簡短說明 (如: 高鐵車票 台北-左營，或 計程車費)。
+                        6. description: 簡短說明。
                         7. companyTitle: 買受人/發票抬頭。無則留空。
                         8. taxId: 統一編號。無則留空。`
                       },
@@ -331,20 +300,17 @@
                       type: "OBJECT",
                       properties: {
                         records: {
-                          type: "ARRAY",
-                          description: "圖片中所有的憑證陣列。",
+                          type: "ARRAY", description: "圖片中所有的憑證陣列。",
                           items: {
                             type: "OBJECT",
                             properties: {
                               date: { type: "STRING" }, form: { type: "STRING" }, category: { type: "STRING" },
                               subCategory: { type: "STRING" }, amount: { type: "INTEGER" }, description: { type: "STRING" },
                               companyTitle: { type: "STRING" }, taxId: { type: "STRING" }
-                            },
-                            required: ["date", "form", "category", "amount", "description", "companyTitle", "taxId"]
+                            }, required: ["date", "form", "category", "amount", "description", "companyTitle", "taxId"]
                           }
                         }
-                      },
-                      required: ["records"]
+                      }, required: ["records"]
                     }
                   }
                 })
@@ -354,27 +320,19 @@
                 const result = await response.json();
                 const textData = result.candidates[0].content.parts[0].text;
                 const parsedData = JSON.parse(textData);
-                if (parsedData && parsedData.records) {
-                  parsedRecords = parsedData.records;
-                  success = true; 
-                  break;
-                }
+                if (parsedData && parsedData.records) { parsedRecords = parsedData.records; success = true; break; }
               } else {
                 const errCode = response.status;
                 const errData = await response.json().catch(()=>({}));
                 console.error(`API 請求錯誤 (${errCode}):`, errData);
 
                 if (errCode === 400) {
-                  isAuthError = true;
-                  errorMsgDetail = "API Key 格式不正確，或要求無效 (400)。";
-                  break;
+                  isAuthError = true; errorMsgDetail = "API Key 格式不正確，或要求無效 (400)。"; break;
                 } else if (errCode === 401 || errCode === 403) {
-                  isAuthError = true;
-                  errorMsgDetail = "API Key 無效、過期或專案權限不足 (401/403)。";
-                  break; 
+                  isAuthError = true; errorMsgDetail = "API Key 無效或專案權限不足 (401/403)。"; break; 
                 } else if (errCode === 404) {
                   isAuthError = true;
-                  errorMsgDetail = `找不到指定的模型 (${modelName})，請確認金鑰對應的專案設定 (404)。`;
+                  errorMsgDetail = `找不到指定的模型 (${modelName})。\n\n請至「系統設定」點擊【測試 API 金鑰連線】，並選擇綠色勾勾提示出的可用模型名稱。(404)`;
                   break; 
                 }
               }
@@ -383,70 +341,37 @@
               console.error("Fetch 網路錯誤:", err);
             }
             if (isAuthError) break; 
-            await new Promise(resolve => setTimeout(resolve, delay));
-            delay *= 2;
+            await new Promise(resolve => setTimeout(resolve, delay)); delay *= 2;
           }
 
           if (success && parsedRecords && Array.isArray(parsedRecords) && parsedRecords.length > 0) {
             if (parsedRecords.length === 1) {
               const item = parsedRecords[0];
               setCurrentRecord(prev => ({
-                ...prev,
-                date: item.date || prev.date || new Date().toISOString().split("T")[0],
-                form: CERTIFICATE_FORMS.includes(item.form) ? item.form : prev.form,
-                formCustom: CERTIFICATE_FORMS.includes(item.form) ? "" : item.form,
-                category: MAIN_SUBJECTS.includes(item.category) ? item.category : prev.category,
-                categoryCustom: MAIN_SUBJECTS.includes(item.category) ? "" : item.category,
-                subCategory: item.subCategory || prev.subCategory,
-                amount: item.amount || prev.amount,
-                description: item.description || prev.description,
-                companyTitle: item.companyTitle || prev.companyTitle,
-                taxId: item.taxId || prev.taxId
+                ...prev, date: item.date || prev.date || new Date().toISOString().split("T")[0], form: CERTIFICATE_FORMS.includes(item.form) ? item.form : prev.form,
+                formCustom: CERTIFICATE_FORMS.includes(item.form) ? "" : item.form, category: MAIN_SUBJECTS.includes(item.category) ? item.category : prev.category,
+                categoryCustom: MAIN_SUBJECTS.includes(item.category) ? "" : item.category, subCategory: item.subCategory || prev.subCategory,
+                amount: item.amount || prev.amount, description: item.description || prev.description, companyTitle: item.companyTitle || prev.companyTitle, taxId: item.taxId || prev.taxId
               }));
             } else {
               const newRecords = parsedRecords.map((item, idx) => ({
-                id: Date.now() + idx,
-                employeeName: employeeName || "未填寫",
-                employeeDept: employeeDept || "未填寫",
-                date: item.date || new Date().toISOString().split("T")[0],
-                form: CERTIFICATE_FORMS.includes(item.form) ? item.form : "其他",
-                formCustom: CERTIFICATE_FORMS.includes(item.form) ? "" : item.form,
-                category: MAIN_SUBJECTS.includes(item.category) ? item.category : "其他(手動輸入)",
-                categoryCustom: MAIN_SUBJECTS.includes(item.category) ? "" : item.category,
-                subCategory: item.subCategory || "",
-                amount: item.amount || 0,
-                description: item.description || "自動辨識批次匯入",
-                companyTitle: item.companyTitle || "", taxId: item.taxId || "",
-                startLocation: "", endLocation: "", mileage: "", subsidyAmount: ""
+                id: Date.now() + idx, employeeName: employeeName || "未填寫", employeeDept: employeeDept || "未填寫",
+                date: item.date || new Date().toISOString().split("T")[0], form: CERTIFICATE_FORMS.includes(item.form) ? item.form : "其他", formCustom: CERTIFICATE_FORMS.includes(item.form) ? "" : item.form,
+                category: MAIN_SUBJECTS.includes(item.category) ? item.category : "其他(手動輸入)", categoryCustom: MAIN_SUBJECTS.includes(item.category) ? "" : item.category,
+                subCategory: item.subCategory || "", amount: item.amount || 0, description: item.description || "自動辨識批次匯入",
+                companyTitle: item.companyTitle || "", taxId: item.taxId || "", startLocation: "", endLocation: "", mileage: "", subsidyAmount: ""
               }));
-              setRecords(prev => [...newRecords, ...prev]);
-              setShowConfirmModal(false);
+              setRecords(prev => [...newRecords, ...prev]); setShowConfirmModal(false);
               triggerAlert(`✅ 成功同時辨識出 ${parsedRecords.length} 張憑證！\n已全數加入下方明細表，請於表格中確認。`);
             }
           } else {
-             // 💡 發生錯誤時精準顯示原因
-             if (isAuthError) {
-               triggerAlert(`⚠️ AI 授權失敗：\n${errorMsgDetail}\n請點擊右上角「⚙️ 系統設定」重新確認您的金鑰內容。系統已暫時帶入預設值。`);
-             } else {
-               triggerAlert("⚠️ AI 辨識連線失敗或格式不支援，已暫時帶入預設值，請手動校正欄位。");
-             }
+             if (isAuthError) { triggerAlert(`⚠️ AI 授權失敗：\n${errorMsgDetail}\n請點擊右上角「⚙️ 系統設定」重新確認您的金鑰內容或切換模型。系統已暫時帶入預設值。`); } 
+             else { triggerAlert("⚠️ AI 辨識連線失敗或格式不支援，已暫時帶入預設值，請手動校正欄位。"); }
              
-             const rand = Math.random();
-             let mockTitle = "茂生食品股份有限公司";
-             let mockTaxId = "85099593";
-             if (rand < 0.3) { mockTitle = "個人憑證"; mockTaxId = ""; }
-
-             setCurrentRecord(prev => ({
-               ...prev,
-               amount: prev.amount === "" ? (Math.floor(Math.random() * 1200) + 150) : prev.amount,
-               description: prev.description === "" ? "公務出差費用 (需手動校正)" : prev.description,
-               companyTitle: prev.companyTitle === "" ? mockTitle : prev.companyTitle,
-               taxId: prev.taxId === "" ? mockTaxId : prev.taxId
-             }));
+             const rand = Math.random(); let mockTitle = "茂生食品股份有限公司"; let mockTaxId = "85099593"; if (rand < 0.3) { mockTitle = "個人憑證"; mockTaxId = ""; }
+             setCurrentRecord(prev => ({ ...prev, amount: prev.amount === "" ? (Math.floor(Math.random() * 1200) + 150) : prev.amount, description: prev.description === "" ? "公務出差費用 (需手動校正)" : prev.description, companyTitle: prev.companyTitle === "" ? mockTitle : prev.companyTitle, taxId: prev.taxId === "" ? mockTaxId : prev.taxId }));
           }
-        } catch (e) {
-          if (e.name === 'AbortError') return;
-        }
+        } catch (e) { if (e.name === 'AbortError') return; }
         setIsOcrLoading(false);
       };
 
@@ -454,10 +379,7 @@
 
       const startManualInput = () => {
         setCapturedImage(null); setInputMethod("manual"); setIsOcrLoading(false);
-        setCurrentRecord({
-          date: new Date().toISOString().split("T")[0], form: "電子發票", formCustom: "", category: "差旅費油資補貼", subCategory: "", categoryCustom: "",
-          amount: "", description: "", companyTitle: "茂生食品股份有限公司", taxId: "", startLocation: "茂生食品", endLocation: "", mileage: "", subsidyAmount: ""
-        });
+        setCurrentRecord({ date: new Date().toISOString().split("T")[0], form: "電子發票", formCustom: "", category: "差旅費油資補貼", subCategory: "", categoryCustom: "", amount: "", description: "", companyTitle: "茂生食品股份有限公司", taxId: "", startLocation: "茂生食品", endLocation: "", mileage: "", subsidyAmount: "" });
         setShowAddModal(false); setShowConfirmModal(true);
       };
 
@@ -465,67 +387,40 @@
         if (!employeeName.trim() || !employeeDept.trim()) { triggerAlert("請先在首頁填寫「員工姓名」與「部門」！"); return; }
         cancelOcr();
         const isTicketExempt = currentRecord.form.includes("車票") || currentRecord.form === "計程車乘車證明";
-        
-        if (!isTicketExempt) {
-          if (currentRecord.companyTitle.trim() !== TARGET_COMPANY && currentRecord.taxId.trim() !== TARGET_TAX_ID) {
-            triggerAlert(`【合規警告】抬頭需為「${TARGET_COMPANY}」或統編需為「${TARGET_TAX_ID}」擇一符合。`); return;
-          }
-        }
-
-        if (currentRecord.category === "差旅費油資補貼") {
-          if (!currentRecord.startLocation || !currentRecord.endLocation || !currentRecord.mileage) { triggerAlert("自駕補貼需填寫起迄點與里程。"); return; }
-        } else {
-          if (!currentRecord.amount || isNaN(currentRecord.amount) || Number(currentRecord.amount) <= 0) { triggerAlert("請輸入正確金額。"); return; }
-        }
+        if (!isTicketExempt && currentRecord.companyTitle.trim() !== TARGET_COMPANY && currentRecord.taxId.trim() !== TARGET_TAX_ID) { triggerAlert(`【合規警告】抬頭需為「${TARGET_COMPANY}」或統編需為「${TARGET_TAX_ID}」擇一符合。`); return; }
+        if (currentRecord.category === "差旅費油資補貼" && (!currentRecord.startLocation || !currentRecord.endLocation || !currentRecord.mileage)) { triggerAlert("自駕補貼需填寫起迄點與里程。"); return; } 
+        else if (currentRecord.category !== "差旅費油資補貼" && (!currentRecord.amount || isNaN(currentRecord.amount) || Number(currentRecord.amount) <= 0)) { triggerAlert("請輸入正確金額。"); return; }
 
         const newRecord = { ...currentRecord, id: Date.now(), employeeName: employeeName.trim(), employeeDept: employeeDept.trim(), amount: Number(currentRecord.amount) };
-        setRecords([newRecord, ...records]);
-        setShowConfirmModal(false); setCapturedImage(null); setInputMethod("");
+        setRecords([newRecord, ...records]); setShowConfirmModal(false); setCapturedImage(null); setInputMethod("");
       };
 
-      const handleDeleteRecord = (id) => {
-        setRecords(records.filter(r => r.id !== id));
-        if (editingId === id) { setEditingId(null); setEditRowData(null); }
-      };
-      
-      const confirmClearRecords = () => {
-        setRecords([]); setShowClearConfirmModal(false); triggerAlert("✅ 歷史憑證明細已一鍵清除完畢。");
-      };
+      const handleDeleteRecord = (id) => { setRecords(records.filter(r => r.id !== id)); if (editingId === id) { setEditingId(null); setEditRowData(null); } };
+      const confirmClearRecords = () => { setRecords([]); setShowClearConfirmModal(false); triggerAlert("✅ 歷史憑證明細已一鍵清除完畢。"); };
 
       const startInlineEdit = (record) => { setEditingId(record.id); setEditRowData({ ...record }); };
       const handleEditFieldChange = (field, val) => {
         setEditRowData(prev => {
           const updated = { ...prev, [field]: val };
           if (updated.category === "差旅費油資補貼" && ["startLocation", "endLocation", "mileage"].includes(field)) {
-            if (updated.mileage) {
-              const cost = Math.round(Number(updated.mileage) * SUBSIDY_RATE);
-              updated.subsidyAmount = cost; updated.amount = cost;
-            }
+            if (updated.mileage) { const cost = Math.round(Number(updated.mileage) * SUBSIDY_RATE); updated.subsidyAmount = cost; updated.amount = cost; }
           }
           return updated;
         });
       };
-
       const saveInlineEdit = () => {
         if (!editRowData.employeeName.trim() || !editRowData.employeeDept.trim()) { triggerAlert("姓名與部門不得為空！"); return; }
         const isTicketExempt = editRowData.form.includes("車票") || editRowData.form === "計程車乘車證明";
-        if (!isTicketExempt && editRowData.companyTitle.trim() !== TARGET_COMPANY && editRowData.taxId.trim() !== TARGET_TAX_ID) {
-          triggerAlert(`【儲存失敗】抬頭或統編需擇一符合。`); return;
-        }
-        if (editRowData.category === "差旅費油資補貼" && (!editRowData.startLocation || !editRowData.endLocation || !editRowData.mileage)) {
-          triggerAlert("自駕補貼必須有起迄地點與正確里程。"); return;
-        }
-        setRecords(records.map(r => r.id === editingId ? { ...editRowData, amount: Number(editRowData.amount) } : r));
-        setEditingId(null); setEditRowData(null);
+        if (!isTicketExempt && editRowData.companyTitle.trim() !== TARGET_COMPANY && editRowData.taxId.trim() !== TARGET_TAX_ID) { triggerAlert(`【儲存失敗】抬頭或統編需擇一符合。`); return; }
+        if (editRowData.category === "差旅費油資補貼" && (!editRowData.startLocation || !editRowData.endLocation || !editRowData.mileage)) { triggerAlert("自駕補貼必須有起迄地點與正確里程。"); return; }
+        setRecords(records.map(r => r.id === editingId ? { ...editRowData, amount: Number(editRowData.amount) } : r)); setEditingId(null); setEditRowData(null);
       };
       const cancelInlineEdit = () => { setEditingId(null); setEditRowData(null); };
 
       const generateCSVContent = (recordsToExport) => {
         let csvContent = "\uFEFF姓名,部門,憑證日期,憑證形式,會計科目,副科目,費用金額,發票抬頭,統一編號,起始地點,結束地點,行駛里程(km),油資補貼,說明\n";
         recordsToExport.forEach(r => {
-          const formText = r.form === "其他" ? r.formCustom : r.form;
-          const catText = r.category === "其他(手動輸入)" ? r.categoryCustom : r.category;
-          const isDrive = r.category === "差旅費油資補貼";
+          const formText = r.form === "其他" ? r.formCustom : r.form; const catText = r.category === "其他(手動輸入)" ? r.categoryCustom : r.category; const isDrive = r.category === "差旅費油資補貼";
           csvContent += `"${r.employeeName}","${r.employeeDept}","${r.date}","${formText}","${catText}","${r.subCategory || ''}",${r.amount},"${r.companyTitle}","${r.taxId}","${isDrive ? r.startLocation : ''}","${isDrive ? r.endLocation : ''}","${isDrive ? r.mileage : ''}","${isDrive ? r.subsidyAmount : ''}","${r.description}"\n`;
         });
         return csvContent;
@@ -534,91 +429,52 @@
       const handleExportClick = () => {
         if (records.length === 0) { triggerAlert("目前無明細可供匯出。"); return; }
         const seen = new Set(); const dups = [];
-        records.forEach(r => {
-          const key = `${r.date}_${r.amount}_${r.category}_${r.taxId}`;
-          if (seen.has(key)) dups.push(r.id); else seen.add(key);
-        });
+        records.forEach(r => { const key = `${r.date}_${r.amount}_${r.category}_${r.taxId}`; if (seen.has(key)) dups.push(r.id); else seen.add(key); });
         if (dups.length > 0) { setDuplicateIds(dups); setShowDuplicateModal(true); } else { setShowExportModal(true); }
       };
-
       const removeDuplicatesAndExport = () => { setRecords(records.filter(r => !duplicateIds.includes(r.id))); setShowDuplicateModal(false); setTimeout(() => setShowExportModal(true), 100); };
       const ignoreDuplicatesAndExport = () => { setShowDuplicateModal(false); setShowExportModal(true); };
 
       const handleSaveLocal = () => {
-        const blob = new Blob([generateCSVContent(records)], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob); const link = document.createElement("a");
-        link.href = url; link.download = `費用報銷彙整表_${new Date().toISOString().split("T")[0]}.csv`;
-        document.body.appendChild(link); link.click(); document.body.removeChild(link); setShowExportModal(false);
+        const blob = new Blob([generateCSVContent(records)], { type: "text/csv;charset=utf-8;" }); const url = URL.createObjectURL(blob); const link = document.createElement("a");
+        link.href = url; link.download = `費用報銷彙整表_${new Date().toISOString().split("T")[0]}.csv`; document.body.appendChild(link); link.click(); document.body.removeChild(link); setShowExportModal(false);
       };
-
       const handleSystemShare = async () => {
-        const filename = `費用報銷彙整表_${new Date().toISOString().split("T")[0]}.csv`;
-        const blob = new Blob([generateCSVContent(records)], { type: "text/csv;charset=utf-8;" });
+        const filename = `費用報銷彙整表_${new Date().toISOString().split("T")[0]}.csv`; const blob = new Blob([generateCSVContent(records)], { type: "text/csv;charset=utf-8;" });
         if (navigator.canShare && navigator.share) {
-          try {
-            const file = new File([blob], filename, { type: "text/csv" });
-            if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "費用報銷彙整表" }); setShowExportModal(false); } 
-            else handleSaveLocal();
-          } catch (err) { if (err.name !== "AbortError") handleSaveLocal(); }
+          try { const file = new File([blob], filename, { type: "text/csv" }); if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "費用報銷彙整表" }); setShowExportModal(false); } else handleSaveLocal(); } catch (err) { if (err.name !== "AbortError") handleSaveLocal(); }
         } else { handleSaveLocal(); }
       };
 
       const handleCSVImport = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
+        const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
         reader.onload = (event) => {
           try {
-            const uint8Array = new Uint8Array(event.target.result);
-            let encoding = 'utf-8';
+            const uint8Array = new Uint8Array(event.target.result); let encoding = 'utf-8';
             try { new TextDecoder('utf-8', { fatal: true }).decode(uint8Array); } catch { encoding = 'big5'; }
-            const rows = parseCSV(new TextDecoder(encoding).decode(uint8Array));
-            if (rows.length === 0) return;
+            const rows = parseCSV(new TextDecoder(encoding).decode(uint8Array)); if (rows.length === 0) return;
             const header = rows[0]; const hasHeader = header.some(h => isNaN(h) && h.length > 0);
             
             const findIdx = (kws) => header.findIndex(h => kws.some(kw => h.trim().toLowerCase().replace(/^\uFEFF/, '').includes(kw)));
-            const idxs = {
-              name: findIdx(["姓名", "員工"]), dept: findIdx(["部門", "單位"]), date: findIdx(["憑證日期", "日期"]), form: findIdx(["憑證形式", "形式"]),
-              cat: findIdx(["會計科目", "科目"]), subCat: findIdx(["副科目"]), amt: findIdx(["費用金額", "金額"]), title: findIdx(["發票抬頭", "抬頭"]),
-              tax: findIdx(["統一編號", "統編"]), start: findIdx(["起始地點", "起點"]), end: findIdx(["結束地點", "迄點"]), mileage: findIdx(["行駛里程", "里程"]),
-              subAmt: findIdx(["油資補貼"]), desc: findIdx(["說明", "備註"])
-            };
+            const idxs = { name: findIdx(["姓名", "員工"]), dept: findIdx(["部門", "單位"]), date: findIdx(["憑證日期", "日期"]), form: findIdx(["憑證形式", "形式"]), cat: findIdx(["會計科目", "科目"]), subCat: findIdx(["副科目"]), amt: findIdx(["費用金額", "金額"]), title: findIdx(["發票抬頭", "抬頭"]), tax: findIdx(["統一編號", "統編"]), start: findIdx(["起始地點", "起點"]), end: findIdx(["結束地點", "迄點"]), mileage: findIdx(["行駛里程", "里程"]), subAmt: findIdx(["油資補貼"]), desc: findIdx(["說明", "備註"]) };
 
             const importedRecords = [];
             for (let i = hasHeader ? 1 : 0; i < rows.length; i++) {
               const row = rows[i]; if (row.length <= 1 && !row[0]) continue;
-              const val = (idx, fallback) => idx !== -1 ? (row[idx] || fallback) : fallback;
-              const amountStr = idxs.amt !== -1 ? row[idxs.amt] : (row.find(v => !isNaN(v) && v !== "" && Number(v) > 0) || "0");
-              
+              const val = (idx, fallback) => idx !== -1 ? (row[idx] || fallback) : fallback; const amountStr = idxs.amt !== -1 ? row[idxs.amt] : (row.find(v => !isNaN(v) && v !== "" && Number(v) > 0) || "0");
               let form = val(idxs.form, row[3] || "電子發票"); let formCustom = ""; if (!CERTIFICATE_FORMS.includes(form)) { formCustom = form; form = "其他"; }
               let category = val(idxs.cat, row[4] || "交通費"); let categoryCustom = ""; if (!MAIN_SUBJECTS.includes(category)) { categoryCustom = category; category = "其他(手動輸入)"; }
 
-              importedRecords.push({
-                id: Date.now() + i + Math.random(),
-                employeeName: val(idxs.name, row[0] || employeeName || "未命名"), employeeDept: val(idxs.dept, row[1] || employeeDept || "未填部門"),
-                date: val(idxs.date, row[2] || new Date().toISOString().split("T")[0]), form, formCustom, category, categoryCustom, subCategory: val(idxs.subCat, row[5] || ""),
-                amount: Number(amountStr) || 0, companyTitle: val(idxs.title, row[7] || ""), taxId: val(idxs.tax, row[8] || ""),
-                startLocation: val(idxs.start, "茂生食品"), endLocation: val(idxs.end, ""), mileage: val(idxs.mileage, ""),
-                subsidyAmount: idxs.subAmt !== -1 ? (row[idxs.subAmt] ? Number(row[idxs.subAmt]) : "") : "", description: val(idxs.desc, row[row.length - 1] || "")
-              });
+              importedRecords.push({ id: Date.now() + i + Math.random(), employeeName: val(idxs.name, row[0] || employeeName || "未命名"), employeeDept: val(idxs.dept, row[1] || employeeDept || "未填部門"), date: val(idxs.date, row[2] || new Date().toISOString().split("T")[0]), form, formCustom, category, categoryCustom, subCategory: val(idxs.subCat, row[5] || ""), amount: Number(amountStr) || 0, companyTitle: val(idxs.title, row[7] || ""), taxId: val(idxs.tax, row[8] || ""), startLocation: val(idxs.start, "茂生食品"), endLocation: val(idxs.end, ""), mileage: val(idxs.mileage, ""), subsidyAmount: idxs.subAmt !== -1 ? (row[idxs.subAmt] ? Number(row[idxs.subAmt]) : "") : "", description: val(idxs.desc, row[row.length - 1] || "") });
             }
 
             if (importedRecords.length > 0) {
-              const existingKeys = new Set(records.map(r => `${r.date}_${r.amount}_${r.category}_${r.taxId}`));
-              const newRecords = []; let duplicateCount = 0;
-              importedRecords.forEach(r => {
-                const key = `${r.date}_${r.amount}_${r.category}_${r.taxId}`;
-                if (existingKeys.has(key)) duplicateCount++; else { existingKeys.add(key); newRecords.push(r); }
-              });
-
+              const existingKeys = new Set(records.map(r => `${r.date}_${r.amount}_${r.category}_${r.taxId}`)); const newRecords = []; let duplicateCount = 0;
+              importedRecords.forEach(r => { const key = `${r.date}_${r.amount}_${r.category}_${r.taxId}`; if (existingKeys.has(key)) duplicateCount++; else { existingKeys.add(key); newRecords.push(r); } });
               if (newRecords.length > 0) {
-                setRecords(prev => [...newRecords, ...prev]);
-                if (newRecords[0].employeeName) setEmployeeName(newRecords[0].employeeName);
-                if (newRecords[0].employeeDept) setEmployeeDept(newRecords[0].employeeDept);
+                setRecords(prev => [...newRecords, ...prev]); if (newRecords[0].employeeName) setEmployeeName(newRecords[0].employeeName); if (newRecords[0].employeeDept) setEmployeeDept(newRecords[0].employeeDept);
                 triggerAlert(`✅ 成功匯入 ${newRecords.length} 筆明細！${duplicateCount > 0 ? `\n⚠️ 已剔除 ${duplicateCount} 筆重複項目。` : ''}`);
-              } else {
-                triggerAlert(`⚠️ 匯入的資料 (${duplicateCount}筆) 與本機現存完全重複，已全數忽略。`);
-              }
+              } else { triggerAlert(`⚠️ 匯入的資料 (${duplicateCount}筆) 與本機現存完全重複，已全數忽略。`); }
             }
           } catch (err) { triggerAlert("匯入解析失敗，請確認檔案格式。"); }
         };
@@ -637,7 +493,7 @@
             </div>
             <div class="mt-4 sm:mt-0 flex flex-col items-start sm:items-end space-y-2">
               <span class="bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg text-sm border border-slate-700 font-mono">系統版本：{VERSION}</span>
-              <button onClick={() => setShowSettingsModal(true)} class="text-xs text-slate-400 hover:text-white flex items-center transition-colors">⚙️ 系統設定 (API Key)</button>
+              <button onClick={() => { setShowSettingsModal(true); setTestKeyStatus(""); }} class="text-xs text-slate-400 hover:text-white flex items-center transition-colors">⚙️ 系統設定 (API 模型/金鑰)</button>
             </div>
           </header>
 
@@ -840,6 +696,7 @@
             </div>
           )}
 
+          {/* 💡 v3.4.2 新增: 連線測試時動態更新可用模型清單 */}
           {showSettingsModal && (
             <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
               <div class="bg-white rounded-3xl w-full max-w-md p-6 animate-in fade-in zoom-in-95">
@@ -847,10 +704,37 @@
                 <div class="space-y-4">
                   <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2">Google Gemini API Key</label>
-                    <p class="text-xs text-slate-500 mb-3 leading-relaxed">為保護資安，API Key 不再寫死於原始碼中。若您要在 GitHub Pages 等外部環境使用 AI 辨識，請在此填入您的專屬金鑰 (金鑰僅儲存於您目前的瀏覽器本地端，安全無虞)。</p>
-                    <input type="password" placeholder="請輸入您的金鑰..." value={customApiKey} onChange={(e) => setCustomApiKey(e.target.value)} class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:border-indigo-500 outline-none" />
+                    <input type="password" placeholder="請輸入您的金鑰 (AQ. 或 AIzaSy 開頭)..." value={customApiKey} onChange={(e) => setCustomApiKey(e.target.value)} class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:border-indigo-500 outline-none" />
                   </div>
-                  <button onClick={() => setShowSettingsModal(false)} class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl shadow transition-colors">儲存設定並關閉</button>
+                  <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">AI 辨識模型 (Model)</label>
+                    <select value={apiModel} onChange={(e) => setApiModel(e.target.value)} class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-500 outline-none">
+                      {availableModels.length > 0 ? (
+                        availableModels.map(m => <option key={m} value={m}>{m}</option>)
+                      ) : (
+                        <>
+                          <option value="gemini-2.5-flash-preview-09-2025">gemini-2.5-flash-preview (預設推薦)</option>
+                          <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+                          <option value="gemini-1.5-flash-latest">gemini-1.5-flash-latest</option>
+                          <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                  
+                  {/* 診斷區塊 */}
+                  <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <button onClick={testApiKeyConnection} class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-2 rounded-lg border border-indigo-200 transition-colors text-sm mb-2">
+                      🔌 測試 API 金鑰連線 (自動探測模型)
+                    </button>
+                    {testKeyStatus && (
+                      <div class={`text-xs p-2 rounded-lg whitespace-pre-wrap ${testKeyStatus.includes("✅") ? "bg-emerald-100 text-emerald-800" : testKeyStatus.includes("⏳") ? "text-slate-500" : "bg-rose-100 text-rose-800"}`}>
+                        {testKeyStatus}
+                      </div>
+                    )}
+                  </div>
+
+                  <button onClick={() => setShowSettingsModal(false)} class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl shadow transition-colors mt-2">儲存設定並關閉</button>
                 </div>
               </div>
             </div>
